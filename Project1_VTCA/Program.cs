@@ -11,26 +11,26 @@ using System.Threading.Tasks;
 class Program
 {
     static async Task Main(string[] args)
+
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.InputEncoding = System.Text.Encoding.UTF8;
-
         var builder = Host.CreateApplicationBuilder(args);
 
-        // Đăng ký DbContext với tên đã cập nhật
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         builder.Services.AddDbContext<SneakerShopDbContext>(options =>
             options.UseSqlServer(connectionString, sqlOpt => sqlOpt.EnableRetryOnFailure()));
 
-        // Đăng ký các Services
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();
 
-        // Đăng ký các lớp UI và Helper
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
+        builder.Services.AddTransient<ProductMenu>();
 
         using var host = builder.Build();
+
+        await ApplyMigrations(host.Services);
 
         using (var scope = host.Services.CreateScope())
         {
@@ -43,8 +43,15 @@ class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Đã xảy ra lỗi nghiêm trọng: {ex.Message}");
-                Console.WriteLine(ex.InnerException?.Message);
+                Console.ReadKey();
             }
         }
+    }
+
+    static async Task ApplyMigrations(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SneakerShopDbContext>();
+        await dbContext.Database.MigrateAsync();
     }
 }
