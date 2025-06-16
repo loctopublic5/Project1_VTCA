@@ -83,7 +83,6 @@ namespace Project1_VTCA.Data
 
             //SEED dữ liệu 50 sản phẩm
 
-
             #region Seed Products
             // --- Sản phẩm 1: Nike Air Force 1 '07 ---
             modelBuilder.Entity<Product>().HasData(new Product { ProductID = 1, Name = "Nike Air Force 1 '07", Description = "Biểu tượng bất hủ của Nike, thiết kế da trơn cổ điển, đệm Air-Sole êm ái. Phù hợp mọi phong cách, dễ phối đồ, độ bền cao.", Price = 2290000.00m, GenderApplicability = "Unisex", TotalQuantity = 515, IsActive = true });
@@ -435,6 +434,26 @@ namespace Project1_VTCA.Data
             modelBuilder.Entity<ProductSize>().HasData(
                 new ProductSize { ProductID = 50, Size = 39, QuantityInStock = 45 }, new ProductSize { ProductID = 50, Size = 40, QuantityInStock = 55 }, new ProductSize { ProductID = 50, Size = 41, QuantityInStock = 50 });
 
+            #endregion
+
+            //SEED tk Admin
+
+            #region Seed Admin User
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    UserID = 1,
+                    Username = "admin",
+                    // Mật khẩu là "snss2025", đã được mã hóa
+                    PasswordHash = "5221b343513b6321287612c6a49688484299351092e62423523425514b87216a",
+                    FullName = "Quản Trị Viên",
+                    PhoneNumber = "0987654321",
+                    Email = "admin@shop.com",
+                    Gender = "Unisex", // Cập nhật giới tính
+                    Role = "Admin",
+                    IsActive = true
+                }
+            );
             #endregion
         }
     }
