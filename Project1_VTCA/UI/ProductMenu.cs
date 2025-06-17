@@ -1,6 +1,7 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,29 +44,44 @@ namespace Project1_VTCA.UI
             }
         }
 
+        // --- PHƯƠNG THỨC ĐÃ ĐƯỢC CẢI TIẾN ---
         private Grid CreateProductGrid(List<Product> products)
         {
-            var grid = new Grid();
+            var grid = new Grid().Expand();
             if (!products.Any())
-                return grid.AddRow(new Text("\nKhông có sản phẩm nào.", new Style(Color.Yellow)).Centered());
-
-            foreach (var _ in products)
-                grid.AddColumn(new GridColumn().PadRight(2));
-
-            foreach (var product in products)
             {
-                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
+                return grid.AddRow(new Text("\nKhông có sản phẩm nào.", new Style(Color.Yellow)).Centered());
+            }
+
+            // Định nghĩa một grid luôn có 5 cột
+            grid.AddColumns(new GridColumn(), new GridColumn(), new GridColumn(), new GridColumn(), new GridColumn());
+
+            // Tạo danh sách các Panel cho từng sản phẩm
+            var panels = products.Select(product => {
+                var brand = product.ProductCategories?
+                                   .Select(pc => pc.Category)
+                                   .FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
                 var productInfo = new Markup(
                     $"[bold yellow]ID: {product.ProductID}[/]\n" +
                     $"[bold]{Markup.Escape(product.Name)}[/]\n" +
                     $"[green]{product.Price:N0} VNĐ[/]\n" +
                     $"[dim]{brand}[/]");
-                var panel = new Panel(productInfo).Expand();
-                grid.AddRow(panel); // Add each panel as a separate row
+                return new Panel(productInfo).Border(BoxBorder.Rounded).Expand();
+            }).ToList();
+
+            // Lặp và thêm các sản phẩm vào grid, mỗi hàng 5 sản phẩm
+            for (int i = 0; i < panels.Count; i += 5)
+            {
+                var rowItems = panels.Skip(i).Take(5).Cast<IRenderable>().ToList();
+                // Nếu hàng cuối không đủ 5, thêm các ô trống để giữ đúng cấu trúc
+                while (rowItems.Count < 5)
+                {
+                    rowItems.Add(new Text(""));
+                }
+                grid.AddRow(rowItems.ToArray());
             }
 
             return grid;
         }
-
     }
 }

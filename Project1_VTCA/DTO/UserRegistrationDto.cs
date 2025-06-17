@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Project1_VTCA.DTOs
 {
-    // Data Transfer Object cho việc đăng ký
     public class UserRegistrationDto
     {
         public string Username { get; set; }

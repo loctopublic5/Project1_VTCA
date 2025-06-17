@@ -7,6 +7,6 @@ namespace Project1_VTCA.Services
     {
         Task<AuthResult> LoginAsync(string username, string password);
         Task<AuthResult> RegisterAsync(UserRegistrationDto registrationData);
-        Task<AuthResult> ForgotPasswordAsync();
+        Task<AuthResult> ForgotPasswordAsync(string username, string email, string newPassword);
     }
 }
