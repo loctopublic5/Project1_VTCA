@@ -5,7 +5,8 @@ namespace Project1_VTCA.Services
 {
     public interface IAuthService
     {
-        Task<AuthResult> LoginAsync();
-        Task<AuthResult> RegisterAsync();
+        Task<AuthResult> LoginAsync(string username, string password);
+        Task<AuthResult> RegisterAsync(UserRegistrationDto registrationData);
+        Task<AuthResult> ForgotPasswordAsync();
     }
 }
