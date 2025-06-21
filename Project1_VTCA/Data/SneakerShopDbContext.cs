@@ -455,6 +455,93 @@ namespace Project1_VTCA.Data
                 }
             );
             #endregion
+
+            //SEED Promotion
+            #region Seed Promotions
+            modelBuilder.Entity<Promotion>().HasData(
+                new Promotion
+                {
+                    PromotionID = 1,
+                    Code = "FORHER15",
+                    DiscountPercentage = 15.00m,
+                    ApplicableGender = "Female", // Chỉ áp dụng cho sản phẩm có GenderApplicability = "Female"
+                    ExpiryDate = new DateTime(2030, 12, 31),
+                    IsActive = true
+                },
+                new Promotion
+                {
+                    PromotionID = 2,
+                    Code = "FORHIM15",
+                    DiscountPercentage = 15.00m,
+                    ApplicableGender = "Male", // Chỉ áp dụng cho sản phẩm có GenderApplicability = "Male"
+                    ExpiryDate = new DateTime(2030, 12, 31),
+                    IsActive = true
+                });
+                // Dán vào cuối phương thức OnModelCreating, trong vùng #region Seed Promotions
+
+                // Lấy ID của các danh mục đã được seed trước đó
+const int CatID_RunningTech = 5;
+            const int CatID_LocalBrand = 7;
+            const int CatID_Chunky = 6;
+            const int CatID_Lifestyle = 3;
+            const int CatID_Retro = 4;
+
+            // --- Thêm các mã khuyến mãi mới theo danh mục và giới tính ---
+            modelBuilder.Entity<Promotion>().HasData(
+                new Promotion
+                {
+                    PromotionID = 3,
+                    Code = "FEMALETECH10",
+                    DiscountPercentage = 10.00m,
+                    ApplicableGender = "Female",
+                    ApplicableCategoryId = CatID_RunningTech,
+                    ExpiryDate = new DateTime(2026, 12, 31),
+                    IsActive = true
+                },
+                new Promotion
+                {
+                    PromotionID = 4,
+                    Code = "FEMALELOCAL10",
+                    DiscountPercentage = 10.00m,
+                    ApplicableGender = "Female",
+                    ApplicableCategoryId = CatID_LocalBrand,
+                    ExpiryDate = new DateTime(2026, 12, 31),
+                    IsActive = true
+                },
+                new Promotion
+                {
+                    PromotionID = 5,
+                    Code = "MALECHUNKY10",
+                    DiscountPercentage = 10.00m,
+                    ApplicableGender = "Male",
+                    ApplicableCategoryId = CatID_Chunky,
+                    ExpiryDate = new DateTime(2026, 12, 31),
+                    IsActive = true
+                },
+                new Promotion
+                {
+                    PromotionID = 6,
+                    Code = "MALELIFESTYLE10",
+                    DiscountPercentage = 10.00m,
+                    ApplicableGender = "Male",
+                    ApplicableCategoryId = CatID_Lifestyle,
+                    ExpiryDate = new DateTime(2026, 12, 31),
+                    IsActive = true
+                },
+                new Promotion
+                {
+                    PromotionID = 7,
+                    Code = "RETROFORALL10",
+                    DiscountPercentage = 10.00m,
+                    ApplicableCategoryId = 4,
+                    ApplicableGender = "All", 
+                    ExpiryDate = new DateTime(2026, 12, 31),
+                    IsActive = true
+                }
+            
+            );
+
+            #endregion
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services;
 using Spectre.Console;
-using Spectre.Console.Rendering;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,11 +11,15 @@ namespace Project1_VTCA.UI
     public class ProductMenu
     {
         private readonly IProductService _productService;
+        private readonly IPromotionService _promotionService;
+        private readonly ISessionService _sessionService;
         private readonly ConsoleLayout _layout;
 
-        public ProductMenu(IProductService productService, ConsoleLayout layout)
+        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ConsoleLayout layout)
         {
             _productService = productService;
+            _promotionService = promotionService;
+            _sessionService = sessionService;
             _layout = layout;
         }
 
@@ -24,64 +27,103 @@ namespace Project1_VTCA.UI
         {
             int currentPage = 1;
             const int PageSize = 10;
-            var menuContent = new Markup("[dim]Đây là menu xem sản phẩm.\nSẽ có các bộ lọc ở đây sau.[/]");
+            string currentSortBy = "default";
 
             while (true)
             {
-                var (products, totalPages) = await _productService.GetActiveProductsPaginatedAsync(currentPage, PageSize);
+                // Nội dung cho khung Menu bên trái
+                var menuContent = new Markup(
+                    "[bold yellow underline]SẮP XẾP[/]\n" +
+                    "1. Mặc định (Mới nhất)\n" +
+                    "2. Giá: Cao đến thấp\n" +
+                    "3. Giá: Thấp đến cao\n\n" +
+                    "[bold yellow underline]LỌC[/]\n" +
+                    "[dim](Các bộ lọc sẽ ở đây sau)[/]\n\n" +
+                    "[dim]Nhập lựa chọn và nhấn Enter.[/]"
+                );
+
+                var (products, totalPages) = await _productService.GetActiveProductsPaginatedAsync(currentPage, PageSize, currentSortBy);
                 totalPages = totalPages > 0 ? totalPages : 1;
 
-                var productGrid = CreateProductGrid(products);
+                // Thay vì tạo Grid, chúng ta tạo Table
+                var productTable = await CreateProductTableAsync(products);
+
                 var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
-                                       "[bold]Điều hướng: [blue]<=[/](Trước) | [blue]=>[/](Sau) | [red]ESC[/](Quay lại)[/]";
+                                       "[bold]Điều hướng: Gõ [blue]'n'[/](Sau), [blue]'p'[/](Trước), [red]'exit'[/] hoặc một lựa chọn Menu[/]";
 
-                _layout.Render(menuContent, productGrid, new Markup(notificationText));
+                _layout.Render(menuContent, productTable, new Markup(notificationText));
 
-                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
-                if (keyInfo.Key == ConsoleKey.Escape) break;
-                if (keyInfo.Key == ConsoleKey.RightArrow && currentPage < totalPages) currentPage++;
-                if (keyInfo.Key == ConsoleKey.LeftArrow && currentPage > 1) currentPage--;
+                Console.Write("\n> Nhập lệnh: ");
+                string choice = Console.ReadLine()?.ToLower().Trim() ?? "";
+
+                switch (choice)
+                {
+                    case "exit": return;
+                    case "n": if (currentPage < totalPages) currentPage++; break;
+                    case "p": if (currentPage > 1) currentPage--; break;
+                    case "1":
+                        currentSortBy = "default";
+                        currentPage = 1;
+                        break;
+                    case "2":
+                        currentSortBy = "price_desc";
+                        currentPage = 1;
+                        break;
+                    case "3":
+                        currentSortBy = "price_asc";
+                        currentPage = 1;
+                        break;
+                }
             }
         }
 
-        // --- PHƯƠNG THỨC ĐÃ ĐƯỢC CẢI TIẾN ---
-        private Grid CreateProductGrid(List<Product> products)
+        // Phương thức này được viết lại để tạo Table và xử lý hiển thị giá
+        private async Task<Table> CreateProductTableAsync(List<Product> products)
         {
-            var grid = new Grid().Expand();
+            var table = new Table().Expand().Border(TableBorder.Rounded);
+            table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
+
+            // Thêm các cột cho bảng
+            table.AddColumn(new TableColumn("[yellow]ID[/]").Centered());
+            table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
+            table.AddColumn(new TableColumn("[yellow]Giá[/]").RightAligned());
+            table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
+
             if (!products.Any())
             {
-                return grid.AddRow(new Text("\nKhông có sản phẩm nào.", new Style(Color.Yellow)).Centered());
+                table.AddRow(new Text("Không có sản phẩm nào để hiển thị.", new Style(Color.Red))).Centered();
+                return table;
             }
 
-            // Định nghĩa một grid luôn có 5 cột
-            grid.AddColumns(new GridColumn(), new GridColumn(), new GridColumn(), new GridColumn(), new GridColumn());
-
-            // Tạo danh sách các Panel cho từng sản phẩm
-            var panels = products.Select(product => {
-                var brand = product.ProductCategories?
-                                   .Select(pc => pc.Category)
-                                   .FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
-                var productInfo = new Markup(
-                    $"[bold yellow]ID: {product.ProductID}[/]\n" +
-                    $"[bold]{Markup.Escape(product.Name)}[/]\n" +
-                    $"[green]{product.Price:N0} VNĐ[/]\n" +
-                    $"[dim]{brand}[/]");
-                return new Panel(productInfo).Border(BoxBorder.Rounded).Expand();
-            }).ToList();
-
-            // Lặp và thêm các sản phẩm vào grid, mỗi hàng 5 sản phẩm
-            for (int i = 0; i < panels.Count; i += 5)
+            foreach (var product in products)
             {
-                var rowItems = panels.Skip(i).Take(5).Cast<IRenderable>().ToList();
-                // Nếu hàng cuối không đủ 5, thêm các ô trống để giữ đúng cấu trúc
-                while (rowItems.Count < 5)
-                {
-                    rowItems.Add(new Text(""));
-                }
-                grid.AddRow(rowItems.ToArray());
-            }
+                // Tính giá khuyến mãi cho từng sản phẩm
+                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
 
-            return grid;
+                string priceDisplay;
+                // --- PHẦN LOGIC HIỂN THỊ GIÁ NÂNG CAO ---
+                if (discountedPrice.HasValue)
+                {
+                    // Nếu có giảm giá, hiển thị giá cũ gạch đi và giá mới nổi bật
+                    priceDisplay = $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]\n[italic dim]Áp dụng: {promoCode}[/]";
+                }
+                else
+                {
+                    // Nếu không, hiển thị giá gốc bình thường
+                    priceDisplay = $"[green]{product.Price:N0} VNĐ[/]";
+                }
+
+                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
+
+                // Thêm một hàng mới cho mỗi sản phẩm
+                table.AddRow(
+                new Markup(product.ProductID.ToString()),
+                new Markup(Markup.Escape(product.Name)),
+                new Markup(priceDisplay),
+                new Markup(Markup.Escape(brand))
+                    );
+            }
+            return table;
         }
     }
 }

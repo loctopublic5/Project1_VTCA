@@ -27,12 +27,14 @@ class Program
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();
+        builder.Services.AddScoped<IPromotionService, PromotionService>();
 
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
         builder.Services.AddTransient<ProductMenu>();
         builder.Services.AddTransient<IUserMenu, UserMenu>();
         builder.Services.AddTransient<IAdminMenu, AdminMenu>();
+       
 
         using var host = builder.Build();
 

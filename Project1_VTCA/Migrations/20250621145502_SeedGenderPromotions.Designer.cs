@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Project1_VTCA.Data;
 
@@ -11,9 +12,11 @@ using Project1_VTCA.Data;
 namespace Project1_VTCA.Migrations
 {
     [DbContext(typeof(SneakerShopDbContext))]
-    partial class SneakerShopDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250621145502_SeedGenderPromotions")]
+    partial class SeedGenderPromotions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2764,56 +2767,6 @@ namespace Project1_VTCA.Migrations
                             Code = "FORHIM15",
                             DiscountPercentage = 15.00m,
                             ExpiryDate = new DateTime(2030, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true
-                        },
-                        new
-                        {
-                            PromotionID = 3,
-                            ApplicableCategoryId = 5,
-                            ApplicableGender = "Female",
-                            Code = "FEMALETECH10",
-                            DiscountPercentage = 10.00m,
-                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true
-                        },
-                        new
-                        {
-                            PromotionID = 4,
-                            ApplicableCategoryId = 7,
-                            ApplicableGender = "Female",
-                            Code = "FEMALELOCAL10",
-                            DiscountPercentage = 10.00m,
-                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true
-                        },
-                        new
-                        {
-                            PromotionID = 5,
-                            ApplicableCategoryId = 6,
-                            ApplicableGender = "Male",
-                            Code = "MALECHUNKY10",
-                            DiscountPercentage = 10.00m,
-                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true
-                        },
-                        new
-                        {
-                            PromotionID = 6,
-                            ApplicableCategoryId = 3,
-                            ApplicableGender = "Male",
-                            Code = "MALELIFESTYLE10",
-                            DiscountPercentage = 10.00m,
-                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            IsActive = true
-                        },
-                        new
-                        {
-                            PromotionID = 7,
-                            ApplicableCategoryId = 4,
-                            ApplicableGender = "All",
-                            Code = "RETROFORALL10",
-                            DiscountPercentage = 10.00m,
-                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             IsActive = true
                         });
                 });

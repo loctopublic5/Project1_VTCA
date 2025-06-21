@@ -16,22 +16,38 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
-        public async Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize)
+        public async Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize, string sortBy)
         {
-            var query = _context.Products.Where(p => p.IsActive); //
+            var query = _context.Products
+                .Where(p => p.IsActive)
+                .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+                .AsQueryable(); // Ensure the query is treated as IQueryable<Product>
+
+            // Xử lý logic sắp xếp
+            switch (sortBy)
+            {
+                case "price_desc":
+                    query = query.OrderByDescending(p => p.Price);
+                    break;
+                case "price_asc":
+                    query = query.OrderBy(p => p.Price);
+                    break;
+                default:
+                    query = query.OrderByDescending(p => p.ProductID);
+                    break;
+            }
 
             var totalProducts = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
 
             var products = await query
-                                 .Include(p => p.ProductCategories)
-                                 .ThenInclude(pc => pc.Category)
-                                 .OrderByDescending(p => p.ProductID) //
                                  .Skip((pageNumber - 1) * pageSize)
                                  .Take(pageSize)
                                  .ToListAsync();
 
             return (products, totalPages);
         }
+
     }
 }
