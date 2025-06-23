@@ -16,15 +16,31 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
-        public async Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize, string sortBy)
+        public async Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize, string sortBy, decimal? minPrice, decimal? maxPrice)
         {
+            // 1. Bắt đầu câu truy vấn và INCLUDE tất cả dữ liệu liên quan trước tiên.
+            // Chuỗi Include/ThenInclude phải đi liền nhau.
             var query = _context.Products
-                .Where(p => p.IsActive)
                 .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
-                .AsQueryable(); // Ensure the query is treated as IQueryable<Product>
+                .AsQueryable();
 
-            // Xử lý logic sắp xếp
+            // 2. Áp dụng các bộ lọc WHERE
+            query = query.Where(p => p.IsActive);
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => p.Price >= minPrice.Value);
+            }
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => p.Price <= maxPrice.Value);
+            }
+
+            // 3. Đếm tổng số sản phẩm SAU KHI lọc (để phân trang cho đúng)
+            var totalProducts = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+
+            // 4. Áp dụng SẮP XẾP
             switch (sortBy)
             {
                 case "price_desc":
@@ -38,9 +54,7 @@ namespace Project1_VTCA.Services
                     break;
             }
 
-            var totalProducts = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
-
+            // 5. Áp dụng PHÂN TRANG và thực thi câu truy vấn
             var products = await query
                                  .Skip((pageNumber - 1) * pageSize)
                                  .Take(pageSize)
@@ -48,11 +62,11 @@ namespace Project1_VTCA.Services
 
             return (products, totalPages);
         }
+
+        // ... Các phương thức còn lại giữ nguyên ...
         public async Task<List<Product>> SearchProductsAsync(string searchTerm)
         {
-            // Tách chuỗi tìm kiếm thành các từ khóa, loại bỏ các khoảng trắng thừa
             var keywords = searchTerm.ToLower().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
             if (!keywords.Any())
             {
                 return new List<Product>();
@@ -64,7 +78,6 @@ namespace Project1_VTCA.Services
                 .ThenInclude(pc => pc.Category)
                 .AsQueryable();
 
-            // Lọc các sản phẩm có tên chứa TẤT CẢ các từ khóa
             foreach (var keyword in keywords)
             {
                 query = query.Where(p => p.Name.ToLower().Contains(keyword));
@@ -72,6 +85,7 @@ namespace Project1_VTCA.Services
 
             return await query.ToListAsync();
         }
+
         public async Task<List<Category>> GetAllProductCategoriesAsync()
         {
             return await _context.Categories
@@ -79,6 +93,8 @@ namespace Project1_VTCA.Services
                 .OrderBy(c => c.Name)
                 .ToListAsync();
         }
+
+
 
         public async Task<(List<Product> Products, int TotalPages)> GetProductsByCategoriesPaginatedAsync(List<int> categoryIds, int pageNumber, int pageSize)
         {

@@ -1,9 +1,11 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services;
+using Project1_VTCA.Utils;
 using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Project1_VTCA.UI
@@ -28,6 +30,8 @@ namespace Project1_VTCA.UI
             int currentPage = 1;
             const int PageSize = 10;
             string currentSortBy = "default";
+            decimal? currentMinPrice = null;
+            decimal? currentMaxPrice = null;
 
             while (true)
             {
@@ -38,47 +42,153 @@ namespace Project1_VTCA.UI
                     "3. Giá: Thấp đến cao\n\n" +
                     "[bold yellow underline]LỌC & TÌM KIẾM[/]\n" +
                     "4. Tìm kiếm theo tên\n" +
-                    "5. Lọc theo danh mục\n\n" +
+                    "5. Lọc theo danh mục\n" +
+                    "6. Lọc theo khoảng giá\n\n" +
+                    "9. Bỏ tất cả bộ lọc\n\n" +
                     "[dim]Nhập lựa chọn và nhấn Enter.[/]"
                 );
 
-                var (products, totalPages) = await _productService.GetActiveProductsPaginatedAsync(currentPage, PageSize, currentSortBy);
+                var (products, totalPages) = await _productService.GetActiveProductsPaginatedAsync(currentPage, PageSize, currentSortBy, currentMinPrice, currentMaxPrice);
                 totalPages = totalPages > 0 ? totalPages : 1;
 
                 var productTable = await CreateProductTableAsync(products);
 
                 var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
-                                       "[bold]Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/] hoặc chọn Menu[/]";
+                                       "Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/] hoặc chọn Menu";
 
-                _layout.Render(menuContent, productTable, new Markup(notificationText));
+                _layout.Render(menuContent, productTable, new Markup($"[bold]{notificationText}[/]"));
 
                 Console.Write("\n> Nhập lệnh: ");
                 string choice = Console.ReadLine()?.ToLower().Trim() ?? "";
 
-                switch (choice)
+                if (!HandleChoice(choice, ref currentPage, ref currentSortBy, ref currentMinPrice, ref currentMaxPrice, totalPages))
                 {
-                    case "exit": return;
-                    case "n": if (currentPage < totalPages) currentPage++; break;
-                    case "p": if (currentPage > 1) currentPage--; break;
-                    case "1": currentSortBy = "default"; currentPage = 1; break;
-                    case "2": currentSortBy = "price_desc"; currentPage = 1; break;
-                    case "3": currentSortBy = "price_asc"; currentPage = 1; break;
-                    case "4": await HandleSearchAsync(); break;
-                    case "5": await HandleCategoryFilterAsync(); break;
-                    default:
-                        if (choice.StartsWith("p.") && choice.Length > 2)
-                        {
-                            if (int.TryParse(choice.Substring(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
-                            {
-                                currentPage = targetPage;
-                            }
-                        }
-                        break;
+                    // Nếu HandleChoice trả về false (tức là người dùng chọn exit hoặc một hành động thoát khác)
+                    return;
                 }
             }
         }
 
-      
+        // Trả về bool để quyết định có tiếp tục vòng lặp hay không
+        private bool HandleChoice(string choice, ref int currentPage, ref string sortBy, ref decimal? minPrice, ref decimal? maxPrice, int totalPages)
+        {
+            switch (choice)
+            {
+                case "exit": return false; // Báo hiệu cần thoát
+                case "n": if (currentPage < totalPages) currentPage++; break;
+                case "p": if (currentPage > 1) currentPage--; break;
+                case "1": minPrice = null; maxPrice = null; sortBy = "default"; currentPage = 1; break;
+                case "2": minPrice = null; maxPrice = null; sortBy = "price_desc"; currentPage = 1; break;
+                case "3": minPrice = null; maxPrice = null; sortBy = "price_asc"; currentPage = 1; break;
+                case "4": HandleSearchAsync().GetAwaiter().GetResult(); break;
+                case "5": HandleCategoryFilterAsync().GetAwaiter().GetResult(); break;
+                case "6":
+                    var (min, max) = HandlePriceFilterAsync().GetAwaiter().GetResult();
+                    minPrice = min; maxPrice = max;
+                    sortBy = "price_asc"; currentPage = 1;
+                    break;
+                case "9":
+                    minPrice = null; maxPrice = null;
+                    sortBy = "default"; currentPage = 1;
+                    break;
+                default:
+                    if (choice.StartsWith("p.") && int.TryParse(choice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
+                    {
+                        currentPage = targetPage;
+                    }
+                    break;
+            }
+            return true; // Báo hiệu tiếp tục vòng lặp
+        }
+
+        private async Task<Table> CreateProductTableAsync(List<Product> products)
+        {
+            var table = new Table().Expand().Border(TableBorder.HeavyHead);
+            table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
+
+            table.AddColumn(new TableColumn("[yellow]ID[/]") { Alignment = Justify.Center });
+            table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
+            table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
+            table.AddColumn(new TableColumn("[yellow]Phong cách chính[/]")); // Đổi tên cột
+            table.AddColumn(new TableColumn("[yellow]Giá[/]") { Alignment = Justify.Right });
+
+            if (!products.Any())
+            {
+                table.AddRow(new Text("Không có sản phẩm nào để hiển thị.", new Style(Color.Red))).Centered();
+                return table;
+            }
+
+            foreach (var product in products)
+            {
+                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
+                string priceDisplay = discountedPrice.HasValue
+                    ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]\n[italic dim]Áp dụng: {promoCode}[/]"
+                    : $"[green]{product.Price:N0} VNĐ[/]\n ";
+
+                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
+
+                // --- LOGIC MỚI: CHỈ LẤY PHONG CÁCH ĐẦU TIÊN ---
+                var mainStyle = product.ProductCategories?
+                                     .Select(pc => pc.Category)
+                                     .FirstOrDefault(c => c.CategoryType == "Product")?.Name ?? "N/A";
+
+                table.AddRow(
+                    new Markup(product.ProductID.ToString()),
+                    new Markup(Markup.Escape(product.Name)),
+                    new Markup(brand),
+                    new Markup(mainStyle), // <-- Hiển thị phong cách chính
+                    new Markup(priceDisplay)
+                );
+            }
+            return table;
+        }
+
+
+
+
+        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC GIÁ ---
+        private async Task<(decimal?, decimal?)> HandlePriceFilterAsync()
+        {
+            AnsiConsole.Clear();
+            Banner.Show();
+
+            var choice = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[bold yellow]CHỌN KHOẢNG GIÁ BẠN MUỐN LỌC[/]")
+                    .AddChoices(new[]
+                    {
+                        "Dưới 1.000.000 VNĐ",
+                        "Từ 1.000.000 - 2.500.000 VNĐ",
+                        "Trên 2.500.000 VNĐ",
+                        "Nhập khoảng giá tùy chỉnh",
+                        "[red]Hủy bỏ[/]"
+                    }));
+
+            switch (choice)
+            {
+                case "Dưới 1.000.000 VNĐ":
+                    return (null, 999999);
+                case "Từ 1.000.000 - 2.500.000 VNĐ":
+                    return (1000000, 2500000);
+                case "Trên 2.500.000 VNĐ":
+                    return (2500001, null);
+                case "Nhập khoảng giá tùy chỉnh":
+                    var min = AnsiConsole.Ask<decimal>("Nhập giá tối thiểu (số):");
+                    var max = AnsiConsole.Ask<decimal>("Nhập giá tối đa (số):");
+                    if (min > max)
+                    {
+                        AnsiConsole.MarkupLine("[red]Giá tối thiểu không thể lớn hơn giá tối đa.[/]");
+                        Console.ReadKey();
+                        return (null, null);
+                    }
+                    return (min, max);
+                case "[red]Hủy bỏ[/]":
+                default:
+                    return (null, null);
+            }
+        }
+
+
 
         private async Task HandleCategoryFilterAsync()
         {
@@ -183,59 +293,7 @@ namespace Project1_VTCA.UI
             }
         }
 
-        private async Task<Table> CreateProductTableAsync(List<Product> products)
-        {
-            var table = new Table().Expand().Border(TableBorder.Rounded);
-            table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
-
-            // Add columns to the table
-            table.AddColumn(new TableColumn("[yellow]ID[/]").Centered());
-            table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
-            table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
-            table.AddColumn(new TableColumn("[yellow]Phong cách[/]")); // <-- New column
-            table.AddColumn(new TableColumn("[yellow]Giá[/]") { Alignment = Justify.Right });
-
-            if (!products.Any())
-            {
-                table.AddRow(new Markup("[red]Không có sản phẩm nào để hiển thị.[/]").Centered());
-                return table;
-            }
-
-            foreach (var product in products)
-            {
-                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
-
-                string priceDisplay;
-                if (discountedPrice.HasValue)
-                {
-                    priceDisplay = $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]\n[italic dim]Áp dụng: {promoCode}[/]";
-                }
-                else
-                {
-                    priceDisplay = $"[green]{product.Price:N0} VNĐ[/]\n ";
-                }
-
-                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
-
-                var styleCategories = product.ProductCategories?
-                                             .Where(pc => pc.Category.CategoryType == "Product")
-                                             .Select(pc => pc.Category.Name)
-                                             .ToList();
-                var stylesDisplay = styleCategories != null && styleCategories.Any()
-                                    ? string.Join("\n", styleCategories)
-                                    : "N/A";
-
-                // Add rows using the correct data type (Markup for formatted text)
-                table.AddRow(
-                    new Markup(product.ProductID.ToString()),
-                    new Markup(Markup.Escape(product.Name)),
-                    new Markup(Markup.Escape(brand)),
-                    new Markup(Markup.Escape(stylesDisplay)),
-                    new Markup(priceDisplay)
-                );
-            }
-            return table;
-        }
+       
 
     }
 }
