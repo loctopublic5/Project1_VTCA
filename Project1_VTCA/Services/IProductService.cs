@@ -8,5 +8,9 @@ namespace Project1_VTCA.Services
     {
         
         Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize, string sortBy);
+        Task<List<Product>> SearchProductsAsync(string searchTerm);
+        Task<List<Category>> GetAllProductCategoriesAsync();
+        Task<(List<Product> Products, int TotalPages)> GetProductsByCategoriesPaginatedAsync(List<int> categoryIds, int pageNumber, int pageSize);
     }
+
 }

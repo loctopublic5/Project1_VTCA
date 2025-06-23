@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -33,7 +34,7 @@ namespace Project1_VTCA.Services
             foreach (var promo in allPromotions)
             {
                 // Kiểm tra xem sản phẩm và người dùng có đủ điều kiện cho khuyến mãi này không
-                bool isApplicable = IsPromotionApplicable(promo, product, user);
+                bool isApplicable = await IsPromotionApplicable(promo, product, user);
 
                 if (isApplicable)
                 {
@@ -64,48 +65,44 @@ namespace Project1_VTCA.Services
             return (bestDiscountedPrice, bestPromotionCode);
         }
 
-        // Hàm helper để kiểm tra điều kiện áp dụng của một khuyến mãi
-        private bool IsPromotionApplicable(Promotion promo, Product product, User user)
+        // HÀM KIỂM TRA LOGIC ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN
+        private async Task<bool> IsPromotionApplicable(Promotion promo, Product product, User user)
         {
-            // Quy tắc 1: Khuyến mãi theo sản phẩm cụ thể
+            // Tải thông tin danh mục của sản phẩm một lần để tái sử dụng
+            var productCategoryIds = await _context.ProductCategories
+                                            .Where(pc => pc.ProductID == product.ProductID)
+                                            .Select(pc => pc.CategoryID)
+                                            .ToListAsync();
+
+            // --- BẮT ĐẦU KIỂM TRA CÁC ĐIỀU KIỆN ---
+
+            // Điều kiện 1: Khuyến mãi cho sản phẩm cụ thể?
             if (promo.ApplicableProductId.HasValue && promo.ApplicableProductId != product.ProductID)
             {
-                return false;
+                return false; // Nếu có chỉ định sản phẩm nhưng không khớp -> loại
             }
 
-            // Quy tắc 2: Khuyến mãi theo danh mục cụ thể
-            if (promo.ApplicableCategoryId.HasValue)
+            // Điều kiện 2: Khuyến mãi cho danh mục cụ thể?
+            if (promo.ApplicableCategoryId.HasValue && !productCategoryIds.Contains(promo.ApplicableCategoryId.Value))
             {
-                var productCategoryIds = product.ProductCategories?.Select(pc => pc.CategoryID).ToList() ?? new System.Collections.Generic.List<int>();
-                if (!productCategoryIds.Contains(promo.ApplicableCategoryId.Value))
-                {
-                    return false;
-                }
+                return false; // Nếu có chỉ định danh mục nhưng sản phẩm không thuộc danh mục đó -> loại
             }
 
-            // Quy tắc 3: Khuyến mãi theo giới tính (đã được làm chặt chẽ hơn)
-            if (!string.IsNullOrEmpty(promo.ApplicableGender))
+            // Điều kiện 3: Khuyến mãi theo giới tính?
+            if (!string.IsNullOrEmpty(promo.ApplicableGender) && promo.ApplicableGender != "All")
             {
-                // Nếu người dùng chưa đăng nhập, không thể áp dụng KM theo giới tính
+                // Nếu KM yêu cầu giới tính mà người dùng chưa đăng nhập -> loại
                 if (user == null) return false;
 
-                // Giới tính của người dùng phải khớp với giới tính của khuyến mãi
+                // Nếu giới tính người dùng không khớp với KM -> loại
                 if (user.Gender != promo.ApplicableGender) return false;
 
-                // KHÔNG áp dụng cho sản phẩm của giới tính đối lập
-                if (!string.IsNullOrEmpty(promo.ApplicableGender) && promo.ApplicableGender != "All")
-                {
-                    if (user == null) return false;
-                    if (user.Gender != promo.ApplicableGender) return false;
-                    if ((user.Gender == "Male" && product.GenderApplicability == "Female") ||
-                        (user.Gender == "Female" && product.GenderApplicability == "Male"))
-                    {
-                        return false;
-                    }
-                }
-            }
+                // Quy tắc bạn yêu cầu: KM theo giới tính sẽ không áp dụng cho sản phẩm Unisex
+                if (product.GenderApplicability == "Unisex") return false;
 
-            // (Thêm các quy tắc khác như theo size ở đây sau)
+                // Giới tính sản phẩm phải khớp với giới tính của KM
+                if (product.GenderApplicability != promo.ApplicableGender) return false;
+            }
 
             // Nếu vượt qua tất cả các kiểm tra, khuyến mãi có thể được áp dụng
             return true;

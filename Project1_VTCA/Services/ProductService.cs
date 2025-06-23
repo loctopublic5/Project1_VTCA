@@ -48,6 +48,60 @@ namespace Project1_VTCA.Services
 
             return (products, totalPages);
         }
+        public async Task<List<Product>> SearchProductsAsync(string searchTerm)
+        {
+            // Tách chuỗi tìm kiếm thành các từ khóa, loại bỏ các khoảng trắng thừa
+            var keywords = searchTerm.ToLower().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
+            if (!keywords.Any())
+            {
+                return new List<Product>();
+            }
+
+            var query = _context.Products
+                .Where(p => p.IsActive)
+                .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+                .AsQueryable();
+
+            // Lọc các sản phẩm có tên chứa TẤT CẢ các từ khóa
+            foreach (var keyword in keywords)
+            {
+                query = query.Where(p => p.Name.ToLower().Contains(keyword));
+            }
+
+            return await query.ToListAsync();
+        }
+        public async Task<List<Category>> GetAllProductCategoriesAsync()
+        {
+            return await _context.Categories
+                .Where(c => c.ParentID != null && c.CategoryType == "Product")
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+
+        public async Task<(List<Product> Products, int TotalPages)> GetProductsByCategoriesPaginatedAsync(List<int> categoryIds, int pageNumber, int pageSize)
+        {
+            if (categoryIds == null || !categoryIds.Any())
+            {
+                return (new List<Product>(), 0);
+            }
+
+            var query = _context.Products
+                .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+                .Where(p => p.IsActive && p.ProductCategories.Any(pc => categoryIds.Contains(pc.CategoryID)))
+                .OrderBy(p => p.Price); // Sắp xếp theo giá tăng dần theo yêu cầu
+
+            var totalProducts = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+
+            var products = await query
+                                 .Skip((pageNumber - 1) * pageSize)
+                                 .Take(pageSize)
+                                 .ToListAsync();
+
+            return (products, totalPages);
+        }
     }
 }
