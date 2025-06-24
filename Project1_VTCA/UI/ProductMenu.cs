@@ -44,7 +44,7 @@ namespace Project1_VTCA.UI
                     "4. Tìm kiếm theo tên\n" +
                     "5. Lọc theo danh mục\n" +
                     "6. Lọc theo khoảng giá\n\n" +
-                    "9. Bỏ tất cả bộ lọc\n\n" +
+                    "7. Lọc theo khuyến mãi\n\n" +
                     "[dim]Nhập lựa chọn và nhấn Enter.[/]"
                 );
 
@@ -87,9 +87,8 @@ namespace Project1_VTCA.UI
                     minPrice = min; maxPrice = max;
                     sortBy = "price_asc"; currentPage = 1;
                     break;
-                case "9":
-                    minPrice = null; maxPrice = null;
-                    sortBy = "default"; currentPage = 1;
+                case "7":
+                    await HandleDiscountedFilterAsync(); // <-- Gọi hàm xử lý mới
                     break;
                 default:
                     if (choice.StartsWith("p.") && int.TryParse(choice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
@@ -146,45 +145,48 @@ namespace Project1_VTCA.UI
 
 
 
-        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC GIÁ ---
         private async Task<(decimal?, decimal?)> HandlePriceFilterAsync()
         {
-            AnsiConsole.Clear();
-            Banner.Show();
+            var menuContent = new Markup(
+                    "[bold yellow underline]LỌC THEO GIÁ[/]\n" +
+                    "1. Dưới 1.000.000 VNĐ\n" +
+                    "2. Từ 1.000.000 - 2.500.000 VNĐ\n" +
+                    "3. Trên 2.500.000 VNĐ\n" +
+                    "4. Nhập khoảng giá tùy chỉnh\n\n" +
+                    "Nhập '[red]exit[/]' để quay lại."
+                );
+            var viewContent = new Text("Vui lòng chọn một khoảng giá từ menu bên trái.");
+            var notificationContent = new Markup("[dim]Nhập lựa chọn của bạn.[/]");
 
-            var choice = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[bold yellow]CHỌN KHOẢNG GIÁ BẠN MUỐN LỌC[/]")
-                    .AddChoices(new[]
-                    {
-                        "Dưới 1.000.000 VNĐ",
-                        "Từ 1.000.000 - 2.500.000 VNĐ",
-                        "Trên 2.500.000 VNĐ",
-                        "Nhập khoảng giá tùy chỉnh",
-                        "[red]Hủy bỏ[/]"
-                    }));
+            _layout.Render(menuContent, viewContent, notificationContent);
+
+            Console.Write("\n> Nhập lựa chọn lọc giá: ");
+            string choice = Console.ReadLine()?.ToLower().Trim() ?? "";
 
             switch (choice)
             {
-                case "Dưới 1.000.000 VNĐ":
-                    return (null, 999999);
-                case "Từ 1.000.000 - 2.500.000 VNĐ":
-                    return (1000000, 2500000);
-                case "Trên 2.500.000 VNĐ":
-                    return (2500001, null);
-                case "Nhập khoảng giá tùy chỉnh":
-                    var min = AnsiConsole.Ask<decimal>("Nhập giá tối thiểu (số):");
-                    var max = AnsiConsole.Ask<decimal>("Nhập giá tối đa (số):");
+                case "1": return (null, 999999);
+                case "2": return (1000000, 2500000);
+                case "3": return (2500001, null);
+                case "4":
+                    // Vẽ lại giao diện để hỏi giá min/max
+                    var customMenu = new Markup("[dim]Đang ở chế độ nhập tùy chỉnh.\nNhập '[red]exit[/]' để hủy.[/]");
+                    var customView = new Text("Vui lòng nhập khoảng giá bạn muốn.");
+                    _layout.Render(customMenu, customView, notificationContent);
+
+                    var min = AnsiConsole.Ask<decimal>("\n> Nhập giá tối thiểu (số):");
+                    var max = AnsiConsole.Ask<decimal>("> Nhập giá tối đa (số):");
+
                     if (min > max)
                     {
-                        AnsiConsole.MarkupLine("[red]Giá tối thiểu không thể lớn hơn giá tối đa.[/]");
+                        AnsiConsole.MarkupLine("[red]Lỗi: Giá tối thiểu không thể lớn hơn giá tối đa.[/]");
                         Console.ReadKey();
                         return (null, null);
                     }
                     return (min, max);
-                case "[red]Hủy bỏ[/]":
+                case "exit":
                 default:
-                    return (null, null);
+                    return (null, null); // Trả về không có bộ lọc nếu hủy hoặc chọn sai
             }
         }
 
@@ -251,49 +253,65 @@ namespace Project1_VTCA.UI
         }
         private async Task HandleSearchAsync()
         {
+            var menuContent = new Markup("[dim]Nhập từ khóa và nhấn Enter.\nNhập '[red]exit[/]' để quay lại.[/]");
+            _layout.Render(menuContent, new Text(""), new Markup("[dim]Đang chờ từ khóa...[/]"));
+
+            Console.Write("\n> Nhập từ khóa tìm kiếm: ");
+            string searchTerm = Console.ReadLine()?.Trim() ?? "";
+            if (string.IsNullOrEmpty(searchTerm) || searchTerm.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
+
+            int currentPage = 1;
             while (true)
             {
-                // Vẽ một layout riêng cho việc tìm kiếm
-                var searchMenu = new Markup("[dim]Nhập từ khóa tìm kiếm.\nVí dụ: [yellow]nike air[/], [yellow]vans[/]...\nTừ khóa đầu tiên không được để trống.[/]");
-                var searchView = new Text("Kết quả tìm kiếm sẽ hiện ở đây.");
-                var searchNotification = new Markup("[dim]Nhập '[red]exit[/]' để quay lại menu duyệt sản phẩm.[/]");
-                _layout.Render(searchMenu, searchView, searchNotification);
+                var (products, totalPages) = await _productService.SearchProductsAsync(searchTerm, currentPage, 10);
+                totalPages = totalPages > 0 ? totalPages : 1;
+                var resultTable = await CreateProductTableAsync(products);
+                var searchMenuContent = new Markup($"[dim]Kết quả tìm kiếm cho:\n[yellow]'{Markup.Escape(searchTerm)}'[/][/]");
+                var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
+                                       "[bold]Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/][/]";
+                _layout.Render(searchMenuContent, resultTable, new Markup(notificationText));
+                Console.Write("\n> Nhập lệnh: ");
+                string navChoice = Console.ReadLine()?.ToLower().Trim() ?? "";
 
-                Console.Write("\n> Nhập từ khóa tìm kiếm: ");
-                string searchTerm = Console.ReadLine()?.Trim() ?? "";
-
-                if (searchTerm.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                if (navChoice == "exit") return;
+                if (navChoice == "n" && currentPage < totalPages) currentPage++;
+                if (navChoice == "p" && currentPage > 1) currentPage--;
+                if (navChoice.StartsWith("p.") && int.TryParse(navChoice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
                 {
-                    return; // Thoát về menu duyệt sản phẩm
+                    currentPage = targetPage;
                 }
-
-                // Kiểm tra điều kiện: ký tự đầu tiên trước dấu cách phải có
-                if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Split(' ')[0] == "")
-                {
-                    AnsiConsole.MarkupLine("[red]Từ khóa tìm kiếm không hợp lệ. Vui lòng nhập lại.[/]");
-                    Console.ReadKey();
-                    continue; // Quay lại vòng lặp tìm kiếm
-                }
-
-                // Gọi service để tìm sản phẩm
-                var results = await _productService.SearchProductsAsync(searchTerm);
-                var resultTable = await CreateProductTableAsync(results); // Tái sử dụng hàm vẽ bảng
-
-                if (!results.Any())
-                {
-                    _layout.Render(searchMenu, new Text("Không tìm thấy sản phẩm nào phù hợp.", new Style(Color.Red)).Centered(), searchNotification);
-                }
-                else
-                {
-                    _layout.Render(searchMenu, resultTable, new Markup($"[green]Tìm thấy {results.Count} sản phẩm phù hợp.[/]"));
-                }
-
-                AnsiConsole.Markup("[dim]Nhấn phím bất kỳ để tìm kiếm lại...[/]");
-                Console.ReadKey();
             }
         }
 
-       
+        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC SẢN PHẨM GIẢM GIÁ ---
+        private async Task HandleDiscountedFilterAsync()
+        {
+            var menuContent = new Markup("[bold yellow underline]ĐANG LỌC[/]\n[cyan]Sản phẩm giảm giá[/]");
+            int currentPage = 1;
+
+            while (true)
+            {
+                var (products, totalPages) = await _productService.GetDiscountedProductsPaginatedAsync(currentPage, 10);
+                totalPages = totalPages > 0 ? totalPages : 1;
+                var resultTable = await CreateProductTableAsync(products);
+                var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
+                                       "[bold]Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/][/]";
+                _layout.Render(menuContent, resultTable, new Markup(notificationText));
+                Console.Write("\n> Nhập lệnh: ");
+                string navChoice = Console.ReadLine()?.ToLower().Trim() ?? "";
+
+                if (navChoice == "exit") return;
+                if (navChoice == "n" && currentPage < totalPages) currentPage++;
+                if (navChoice == "p" && currentPage > 1) currentPage--;
+                if (navChoice.StartsWith("p.") && int.TryParse(navChoice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
+                {
+                    currentPage = targetPage;
+                }
+            }
+        }
+
+
+
 
     }
 }

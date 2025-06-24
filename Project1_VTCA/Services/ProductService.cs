@@ -63,13 +63,12 @@ namespace Project1_VTCA.Services
             return (products, totalPages);
         }
 
-        // ... Các phương thức còn lại giữ nguyên ...
-        public async Task<List<Product>> SearchProductsAsync(string searchTerm)
+        public async Task<(List<Product> Products, int TotalPages)> SearchProductsAsync(string searchTerm, int pageNumber, int pageSize)
         {
             var keywords = searchTerm.ToLower().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (!keywords.Any())
             {
-                return new List<Product>();
+                return (new List<Product>(), 0);
             }
 
             var query = _context.Products
@@ -83,7 +82,46 @@ namespace Project1_VTCA.Services
                 query = query.Where(p => p.Name.ToLower().Contains(keyword));
             }
 
-            return await query.ToListAsync();
+            var totalProducts = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+
+            var products = await query
+                                .OrderByDescending(p => p.ProductID)
+                                .Skip((pageNumber - 1) * pageSize)
+                                .Take(pageSize)
+                                .ToListAsync();
+
+            return (products, totalPages);
+        }
+
+        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC SẢN PHẨM GIẢM GIÁ ---
+        public async Task<(List<Product> Products, int TotalPages)> GetDiscountedProductsPaginatedAsync(int pageNumber, int pageSize)
+        {
+            var allActiveProducts = await _context.Products
+                .Where(p => p.IsActive)
+                .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+                .ToListAsync();
+
+            var discountedProductList = new List<Product>();
+
+            // Lặp qua tất cả sản phẩm để kiểm tra xem sản phẩm nào có khuyến mãi
+            foreach (var product in allActiveProducts)
+            {
+                var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
+                if (discountedPrice.HasValue)
+                {
+                    discountedProductList.Add(product);
+                }
+            }
+
+            // Sắp xếp và phân trang trên danh sách sản phẩm đã được lọc ra
+            var sortedList = discountedProductList.OrderBy(p => p.Price).ToList();
+            var totalProducts = sortedList.Count;
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+            var paginatedList = sortedList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+            return (paginatedList, totalPages);
         }
 
         public async Task<List<Category>> GetAllProductCategoriesAsync()
