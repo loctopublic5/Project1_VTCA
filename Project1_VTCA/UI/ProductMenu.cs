@@ -44,8 +44,7 @@ namespace Project1_VTCA.UI
                     "4. Tìm kiếm theo tên\n" +
                     "5. Lọc theo danh mục\n" +
                     "6. Lọc theo khoảng giá\n\n" +
-                    "7. Lọc theo khuyến mãi\n\n" +
-                    "[dim]Nhập lựa chọn và nhấn Enter.[/]"
+                    "[dim]n - Trang sau; p - Trang trước; p.{số trang} - Đến trang nhất định; id.{mã id} - Xem chi tiết sp; exit - Thoát[/]"
                 );
 
                 var (products, totalPages) = await _productService.GetActiveProductsPaginatedAsync(currentPage, PageSize, currentSortBy, currentMinPrice, currentMaxPrice);
@@ -61,10 +60,16 @@ namespace Project1_VTCA.UI
                 Console.Write("\n> Nhập lệnh: ");
                 string choice = Console.ReadLine()?.ToLower().Trim() ?? "";
 
-                if (!HandleChoice(choice, ref currentPage, ref currentSortBy, ref currentMinPrice, ref currentMaxPrice, totalPages))
+                if (choice.StartsWith("id."))
                 {
-                    // Nếu HandleChoice trả về false (tức là người dùng chọn exit hoặc một hành động thoát khác)
-                    return;
+                    if (int.TryParse(choice.AsSpan(3), out int productId))
+                    {
+                        await HandleViewProductDetailsAsync(productId);
+                    }
+                }
+                else
+                {
+                    if (!HandleChoice(choice, ref currentPage, ref currentSortBy, ref currentMinPrice, ref currentMaxPrice, totalPages)) return;
                 }
             }
         }
@@ -87,9 +92,7 @@ namespace Project1_VTCA.UI
                     minPrice = min; maxPrice = max;
                     sortBy = "price_asc"; currentPage = 1;
                     break;
-                case "7":
-                    await HandleDiscountedFilterAsync(); // <-- Gọi hàm xử lý mới
-                    break;
+
                 default:
                     if (choice.StartsWith("p.") && int.TryParse(choice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
                     {
@@ -143,7 +146,70 @@ namespace Project1_VTCA.UI
         }
 
 
+        private async Task HandleViewProductDetailsAsync(int productId)
+        {
+            var product = await _productService.GetProductByIdAsync(productId);
+            if (product == null)
+            {
+                AnsiConsole.MarkupLine("\n[red]Lỗi: Không tìm thấy sản phẩm với ID này hoặc sản phẩm đã ngừng kinh doanh.[/]");
+                Console.ReadKey();
+                return;
+            }
 
+            while (true)
+            {
+                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
+
+                var actionMenu = new Markup(
+                    "[bold yellow underline]HÀNH ĐỘNG[/]\n" +
+                    "1. Mua ngay\n" +
+                    "2. Thêm vào giỏ hàng\n\n" +
+                    "[red]3. Quay lại danh sách[/]"
+                );
+
+                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
+                var styles = string.Join(", ", product.ProductCategories?.Where(pc => pc.Category.CategoryType == "Product").Select(c => c.Category.Name) ?? Enumerable.Empty<string>());
+                var priceDisplay = discountedPrice.HasValue
+                    ? $"[strikethrough dim red]{product.Price:N0} VNĐ[/]  [bold green]{discountedPrice.Value:N0} VNĐ[/] ([italic]Tiết kiệm: {product.Price - discountedPrice.Value:N0} VNĐ[/])"
+                    : $"[bold green]{product.Price:N0} VNĐ[/]";
+                var sizes = string.Join(" | ", product.ProductSizes?.Select(s => $"{s.Size} (SL: {s.QuantityInStock})") ?? Enumerable.Empty<string>());
+
+                var detailsPanel = new Panel(
+                    new Rows(
+                        new FigletText(brand).Color(Color.Orange1),
+                        new Text(product.Name, new Style(decoration: Decoration.Bold | Decoration.Underline)).LeftJustified(),
+                        new Text(""),
+                        new Markup($"[bold]Phong cách:[/] {styles}"),
+                        new Markup($"[bold]Giá:[/] {priceDisplay}"),
+                        new Rule("[yellow]Mô tả[/]").LeftJustified(),
+                        new Padder(new Markup(Markup.Escape(product.Description ?? "")), new Padding(0, 0, 0, 1)),
+                        new Rule("[yellow]Size còn hàng[/]").LeftJustified(),
+                        new Text(sizes)
+                    ))
+                    .Header("CHI TIẾT SẢN PHẨM")
+                    .Expand();
+
+                var notification = new Markup("[dim]Chọn một hành động từ menu bên trái.[/]");
+                _layout.Render(actionMenu, detailsPanel, notification);
+
+                Console.Write("\n> Nhập lựa chọn hành động: ");
+                string choice = Console.ReadLine()?.Trim() ?? "";
+
+                switch (choice)
+                {
+                    case "1":
+                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Mua ngay' sẽ được hiện thực sau.[/]");
+                        Console.ReadKey();
+                        break;
+                    case "2":
+                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Thêm vào giỏ hàng' sẽ được hiện thực sau.[/]");
+                        Console.ReadKey();
+                        break;
+                    case "3":
+                        return;
+                }
+            }
+        }
 
         private async Task<(decimal?, decimal?)> HandlePriceFilterAsync()
         {
@@ -253,65 +319,69 @@ namespace Project1_VTCA.UI
         }
         private async Task HandleSearchAsync()
         {
-            var menuContent = new Markup("[dim]Nhập từ khóa và nhấn Enter.\nNhập '[red]exit[/]' để quay lại.[/]");
-            _layout.Render(menuContent, new Text(""), new Markup("[dim]Đang chờ từ khóa...[/]"));
-
-            Console.Write("\n> Nhập từ khóa tìm kiếm: ");
-            string searchTerm = Console.ReadLine()?.Trim() ?? "";
-            if (string.IsNullOrEmpty(searchTerm) || searchTerm.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
-
-            int currentPage = 1;
+            // Vòng lặp tìm kiếm bên ngoài
             while (true)
             {
-                var (products, totalPages) = await _productService.SearchProductsAsync(searchTerm, currentPage, 10);
-                totalPages = totalPages > 0 ? totalPages : 1;
-                var resultTable = await CreateProductTableAsync(products);
-                var searchMenuContent = new Markup($"[dim]Kết quả tìm kiếm cho:\n[yellow]'{Markup.Escape(searchTerm)}'[/][/]");
-                var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
-                                       "[bold]Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/][/]";
-                _layout.Render(searchMenuContent, resultTable, new Markup(notificationText));
-                Console.Write("\n> Nhập lệnh: ");
-                string navChoice = Console.ReadLine()?.ToLower().Trim() ?? "";
+                var menuContent = new Markup("[dim]Nhập từ khóa tìm kiếm.\nTừ khóa đầu tiên không được để trống.[/]");
+                var searchView = new Text("");
+                var searchNotification = new Markup("[dim]Nhập '[red]exit[/]' để quay về menu duyệt sản phẩm.[/]");
+                _layout.Render(menuContent, searchView, searchNotification);
 
-                if (navChoice == "exit") return;
-                if (navChoice == "n" && currentPage < totalPages) currentPage++;
-                if (navChoice == "p" && currentPage > 1) currentPage--;
-                if (navChoice.StartsWith("p.") && int.TryParse(navChoice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
+                Console.Write("\n> Nhập từ khóa tìm kiếm: ");
+                string searchTerm = Console.ReadLine()?.Trim() ?? "";
+
+                if (searchTerm.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    currentPage = targetPage;
+                    return; // Thoát hoàn toàn khỏi chức năng tìm kiếm
+                }
+
+                if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Split(' ')[0] == "")
+                {
+                    AnsiConsole.MarkupLine("[red]Từ khóa tìm kiếm không hợp lệ. Nhấn phím bất kỳ để nhập lại.[/]");
+                    Console.ReadKey();
+                    continue; // Quay lại đầu vòng lặp tìm kiếm
+                }
+
+                // Bắt đầu phân trang cho kết quả tìm kiếm
+                int currentPage = 1;
+                while (true)
+                {
+                    var (products, totalPages) = await _productService.SearchProductsAsync(searchTerm, currentPage, 10);
+                    totalPages = totalPages > 0 ? totalPages : 1;
+
+                    if (!products.Any() && currentPage == 1)
+                    {
+                        _layout.Render(menuContent, new Text("Không tìm thấy sản phẩm nào phù hợp.", new Style(Color.Red)).Centered(), searchNotification);
+                        AnsiConsole.Markup("[dim]Nhấn phím bất kỳ để tìm kiếm lại...[/]");
+                        Console.ReadKey();
+                        break; // Thoát khỏi vòng lặp phân trang, quay lại vòng lặp tìm kiếm
+                    }
+
+                    var resultTable = await CreateProductTableAsync(products);
+                    var searchMenuContent = new Markup($"[dim]Kết quả tìm kiếm cho:\n[yellow]'{Markup.Escape(searchTerm)}'[/][/]");
+                    var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
+                                           "Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/], [red]'exit'[/](Tìm kiếm lại)";
+
+                    _layout.Render(searchMenuContent, resultTable, new Markup(notificationText));
+
+                    Console.Write("\n> Nhập lệnh: ");
+                    string navChoice = Console.ReadLine()?.ToLower().Trim() ?? "";
+
+                    if (navChoice == "exit") break; // Thoát khỏi vòng lặp phân trang, quay lại vòng lặp tìm kiếm
+                    if (navChoice == "n" && currentPage < totalPages) currentPage++;
+                    if (navChoice == "p" && currentPage > 1) currentPage--;
+                    if (navChoice.StartsWith("p.") && int.TryParse(navChoice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
+                    {
+                        currentPage = targetPage;
+                    }
                 }
             }
+
+
+
+
+
+
         }
-
-        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC SẢN PHẨM GIẢM GIÁ ---
-        private async Task HandleDiscountedFilterAsync()
-        {
-            var menuContent = new Markup("[bold yellow underline]ĐANG LỌC[/]\n[cyan]Sản phẩm giảm giá[/]");
-            int currentPage = 1;
-
-            while (true)
-            {
-                var (products, totalPages) = await _productService.GetDiscountedProductsPaginatedAsync(currentPage, 10);
-                totalPages = totalPages > 0 ? totalPages : 1;
-                var resultTable = await CreateProductTableAsync(products);
-                var notificationText = $"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]\n" +
-                                       "[bold]Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.{số}'[/](Đến trang), [red]'exit'[/][/]";
-                _layout.Render(menuContent, resultTable, new Markup(notificationText));
-                Console.Write("\n> Nhập lệnh: ");
-                string navChoice = Console.ReadLine()?.ToLower().Trim() ?? "";
-
-                if (navChoice == "exit") return;
-                if (navChoice == "n" && currentPage < totalPages) currentPage++;
-                if (navChoice == "p" && currentPage > 1) currentPage--;
-                if (navChoice.StartsWith("p.") && int.TryParse(navChoice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= totalPages)
-                {
-                    currentPage = targetPage;
-                }
-            }
-        }
-
-
-
-
     }
 }

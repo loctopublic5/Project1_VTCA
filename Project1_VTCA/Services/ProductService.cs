@@ -10,152 +10,78 @@ namespace Project1_VTCA.Services
     public class ProductService : IProductService
     {
         private readonly SneakerShopDbContext _context;
+        private readonly IPromotionService _promotionService; // Thêm service này
 
-        public ProductService(SneakerShopDbContext context)
+        // Sửa lại hàm dựng để nhận IPromotionService
+        public ProductService(SneakerShopDbContext context, IPromotionService promotionService)
         {
             _context = context;
+            _promotionService = promotionService;
         }
 
         public async Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize, string sortBy, decimal? minPrice, decimal? maxPrice)
         {
-            // 1. Bắt đầu câu truy vấn và INCLUDE tất cả dữ liệu liên quan trước tiên.
-            // Chuỗi Include/ThenInclude phải đi liền nhau.
             var query = _context.Products
-                .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
-                .AsQueryable();
+                .Include(p => p.ProductCategories).ThenInclude(pc => pc.Category)
+                .Where(p => p.IsActive);
 
-            // 2. Áp dụng các bộ lọc WHERE
-            query = query.Where(p => p.IsActive);
-            if (minPrice.HasValue)
-            {
-                query = query.Where(p => p.Price >= minPrice.Value);
-            }
-            if (maxPrice.HasValue)
-            {
-                query = query.Where(p => p.Price <= maxPrice.Value);
-            }
+            if (minPrice.HasValue) query = query.Where(p => p.Price >= minPrice.Value);
+            if (maxPrice.HasValue) query = query.Where(p => p.Price <= maxPrice.Value);
 
-            // 3. Đếm tổng số sản phẩm SAU KHI lọc (để phân trang cho đúng)
             var totalProducts = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
 
-            // 4. Áp dụng SẮP XẾP
             switch (sortBy)
             {
-                case "price_desc":
-                    query = query.OrderByDescending(p => p.Price);
-                    break;
-                case "price_asc":
-                    query = query.OrderBy(p => p.Price);
-                    break;
-                default:
-                    query = query.OrderByDescending(p => p.ProductID);
-                    break;
+                case "price_desc": query = query.OrderByDescending(p => p.Price); break;
+                case "price_asc": query = query.OrderBy(p => p.Price); break;
+                default: query = query.OrderByDescending(p => p.ProductID); break;
             }
 
-            // 5. Áp dụng PHÂN TRANG và thực thi câu truy vấn
-            var products = await query
-                                 .Skip((pageNumber - 1) * pageSize)
-                                 .Take(pageSize)
-                                 .ToListAsync();
-
+            var products = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
             return (products, totalPages);
         }
 
         public async Task<(List<Product> Products, int TotalPages)> SearchProductsAsync(string searchTerm, int pageNumber, int pageSize)
         {
             var keywords = searchTerm.ToLower().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (!keywords.Any())
+            var query = _context.Products.Include(p => p.ProductCategories).ThenInclude(pc => pc.Category).Where(p => p.IsActive);
+            if (keywords.Any())
             {
-                return (new List<Product>(), 0);
-            }
-
-            var query = _context.Products
-                .Where(p => p.IsActive)
-                .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
-                .AsQueryable();
-
-            foreach (var keyword in keywords)
-            {
-                query = query.Where(p => p.Name.ToLower().Contains(keyword));
-            }
-
-            var totalProducts = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
-
-            var products = await query
-                                .OrderByDescending(p => p.ProductID)
-                                .Skip((pageNumber - 1) * pageSize)
-                                .Take(pageSize)
-                                .ToListAsync();
-
-            return (products, totalPages);
-        }
-
-        // --- PHƯƠNG THỨC MỚI ĐỂ LỌC SẢN PHẨM GIẢM GIÁ ---
-        public async Task<(List<Product> Products, int TotalPages)> GetDiscountedProductsPaginatedAsync(int pageNumber, int pageSize)
-        {
-            var allActiveProducts = await _context.Products
-                .Where(p => p.IsActive)
-                .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
-                .ToListAsync();
-
-            var discountedProductList = new List<Product>();
-
-            // Lặp qua tất cả sản phẩm để kiểm tra xem sản phẩm nào có khuyến mãi
-            foreach (var product in allActiveProducts)
-            {
-                var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
-                if (discountedPrice.HasValue)
+                foreach (var keyword in keywords)
                 {
-                    discountedProductList.Add(product);
+                    query = query.Where(p => p.Name.ToLower().Contains(keyword));
                 }
             }
-
-            // Sắp xếp và phân trang trên danh sách sản phẩm đã được lọc ra
-            var sortedList = discountedProductList.OrderBy(p => p.Price).ToList();
-            var totalProducts = sortedList.Count;
+            var totalProducts = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
-            var paginatedList = sortedList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
-
-            return (paginatedList, totalPages);
+            var products = await query.OrderByDescending(p => p.ProductID).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (products, totalPages);
         }
 
         public async Task<List<Category>> GetAllProductCategoriesAsync()
         {
-            return await _context.Categories
-                .Where(c => c.ParentID != null && c.CategoryType == "Product")
-                .OrderBy(c => c.Name)
-                .ToListAsync();
+            return await _context.Categories.Where(c => c.ParentID != null && c.CategoryType == "Product").OrderBy(c => c.Name).ToListAsync();
         }
-
-
 
         public async Task<(List<Product> Products, int TotalPages)> GetProductsByCategoriesPaginatedAsync(List<int> categoryIds, int pageNumber, int pageSize)
         {
-            if (categoryIds == null || !categoryIds.Any())
-            {
-                return (new List<Product>(), 0);
-            }
-
-            var query = _context.Products
-                .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
-                .Where(p => p.IsActive && p.ProductCategories.Any(pc => categoryIds.Contains(pc.CategoryID)))
-                .OrderBy(p => p.Price); // Sắp xếp theo giá tăng dần theo yêu cầu
-
+            var query = _context.Products.Include(p => p.ProductCategories).ThenInclude(pc => pc.Category).Where(p => p.IsActive && p.ProductCategories.Any(pc => categoryIds.Contains(pc.CategoryID)));
             var totalProducts = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
-
-            var products = await query
-                                 .Skip((pageNumber - 1) * pageSize)
-                                 .Take(pageSize)
-                                 .ToListAsync();
-
+            var products = await query.OrderBy(p => p.Price).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
             return (products, totalPages);
+        }
+
+     
+
+        public async Task<Product> GetProductByIdAsync(int productId)
+        {
+            return await _context.Products
+                .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+                .Include(p => p.ProductSizes)
+                .FirstOrDefaultAsync(p => p.ProductID == productId && p.IsActive);
         }
     }
 }
