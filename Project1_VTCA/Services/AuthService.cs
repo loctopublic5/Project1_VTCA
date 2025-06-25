@@ -43,9 +43,7 @@ namespace Project1_VTCA.Services
                 PhoneNumber = data.PhoneNumber,
                 Gender = data.Gender,
                 Role = "Customer",
-                IsActive = true,
-                Balance = 0,
-                TotalSpending = 0
+                IsActive = true
             };
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();

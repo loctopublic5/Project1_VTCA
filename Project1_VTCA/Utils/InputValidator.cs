@@ -7,7 +7,7 @@ namespace Project1_VTCA.Utils
         public static bool IsValidUsername(string username)
         {
             if (string.IsNullOrWhiteSpace(username)) return false;
-            return Regex.IsMatch(username, @"^[A-Za-z0-9]{3,20}$");
+            return Regex.IsMatch(username, @"^[a-zA-Z0-9]{3,20}$");
         }
 
         // Cập nhật quy tắc kiểm tra mật khẩu mạnh
@@ -17,7 +17,6 @@ namespace Project1_VTCA.Utils
             {
                 return false;
             }
-            // Yêu cầu: ít nhất 1 chữ hoa, 1 chữ thường, 1 số, và 1 ký tự đặc biệt
             var hasUpperChar = new Regex(@"[A-Z]+");
             var hasLowerChar = new Regex(@"[a-z]+");
             var hasNumber = new Regex(@"[0-9]+");
@@ -26,16 +25,18 @@ namespace Project1_VTCA.Utils
             return hasUpperChar.IsMatch(password) && hasLowerChar.IsMatch(password) && hasNumber.IsMatch(password) && hasSpecialChar.IsMatch(password);
         }
 
+        // Cập nhật Regex để đảm bảo định dạng email chuẩn
         public static bool IsValidEmail(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) return false;
-            return Regex.IsMatch(email, @"^[a-z0-9\._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$");
+            return Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.IgnoreCase);
         }
 
+        // Cập nhật Regex để đảm bảo bắt đầu bằng số 0 và có đúng 10 chữ số
         public static bool IsValidPhoneNumber(string phoneNumber)
         {
-            if (string.IsNullOrWhiteSpace(phoneNumber) || phoneNumber.Length != 10) return false;
-            return phoneNumber.All(char.IsDigit);
+            if (string.IsNullOrWhiteSpace(phoneNumber)) return false;
+            return Regex.IsMatch(phoneNumber, @"^0[0-9]{9}$");
         }
     }
 }
