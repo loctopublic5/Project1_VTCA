@@ -115,31 +115,34 @@ namespace Project1_VTCA.UI
 
             var dto = new UserRegistrationDto();
 
-            dto.Username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] (viết liền, 3-20 ký tự):", InputValidator.IsValidUsername, "Username không hợp lệ.");
+            dto.Username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] (3-20 ký tự, không dấu, không khoảng trắng):", InputValidator.IsValidUsername, "Username không hợp lệ.");
             if (dto.Username == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            // Sử dụng trực tiếp TextPrompt().Secret() để mã hóa khi nhập
             dto.Password = AnsiConsole.Prompt(
                 new TextPrompt<string>("Nhập [green]Password[/] (8-20 ký tự, có hoa, thường, số, ký tự đặc biệt):")
                     .Secret()
                     .Validate(password =>
-                    {
-                        if (InputValidator.IsValidPassword(password))
-                            return ValidationResult.Success();
-                        return ValidationResult.Error("[red]Mật khẩu không đủ mạnh.[/]");
-                    })
+                        InputValidator.IsValidPassword(password)
+                        ? ValidationResult.Success()
+                        : ValidationResult.Error("[red]Mật khẩu không đủ mạnh.[/]"))
             );
 
             dto.FullName = ConsoleHelper.PromptForInput("Nhập [green]Họ và Tên[/]:", f => !string.IsNullOrWhiteSpace(f), "Họ và tên không được để trống.");
             if (dto.FullName == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            dto.Email = ConsoleHelper.PromptForInput("Nhập [green]Email[/]:", InputValidator.IsValidEmail, "Email không hợp lệ.");
+            // Cập nhật lại text hướng dẫn cho email
+            dto.Email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] (phải là @gmail.com, chữ thường):", InputValidator.IsValidEmail, "Email không hợp lệ.");
             if (dto.Email == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            dto.PhoneNumber = ConsoleHelper.PromptForInput("Nhập [green]Số điện thoại[/]:", InputValidator.IsValidPhoneNumber, "Số điện thoại không hợp lệ (cần đủ 10 số).");
+            dto.PhoneNumber = ConsoleHelper.PromptForInput("Nhập [green]Số điện thoại[/]:", InputValidator.IsValidPhoneNumber, "Số điện thoại không hợp lệ (phải bắt đầu bằng 0, đủ 10 số).");
             if (dto.PhoneNumber == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            dto.Gender = AnsiConsole.Prompt(new SelectionPrompt<string>().Title("Chọn [green]Giới tính[/]:").AddChoices(new[] { "Male", "Female", "Unisex" }));
+            // CẬP NHẬT LỰA CHỌN GIỚI TÍNH
+            dto.Gender = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Chọn [green]Giới tính[/]:")
+                    .AddChoices(new[] { "Male", "Female" }) // Chỉ còn 2 lựa chọn
+            );
 
             var result = await _authService.RegisterAsync(dto);
             AnsiConsole.MarkupLine($"\n{result.Message}");

@@ -156,7 +156,10 @@ namespace Project1_VTCA.UI
                 "5. Lọc theo danh mục\n" +
                 "6. Lọc theo giá\n" +
                 "0. Trang chính\n\n" +
-                "[dim]Nhập lựa chọn và nhấn Enter.[/]"
+                "[dim]exit - Thoát trang sản phẩm; \n" +
+                "n - Trang sau; \np - Trang trước;\n" +
+                "p.{số trang} - Đến trang chỉ định;\n" +
+                "id.{mã sp} - Xem chi tiết sản phẩm[/]"
             );
         }
 

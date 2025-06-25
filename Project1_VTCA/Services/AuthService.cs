@@ -19,7 +19,10 @@ namespace Project1_VTCA.Services
 
         public async Task<AuthResult> LoginAsync(string username, string password)
         {
-            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username);
+            // Sửa lỗi so sánh không phân biệt hoa thường
+            var user = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+
             if (user == null || !PasswordHasher.VerifyPassword(password, user.PasswordHash))
             {
                 return new AuthResult(false, "[red]Sai tên đăng nhập hoặc mật khẩu.[/]");
@@ -30,10 +33,18 @@ namespace Project1_VTCA.Services
 
         public async Task<AuthResult> RegisterAsync(UserRegistrationDto data)
         {
-            if (await _context.Users.AnyAsync(u => u.Username == data.Username))
+            // Sửa lỗi so sánh không phân biệt hoa thường
+            if (await _context.Users.AnyAsync(u => u.Username.ToLower() == data.Username.ToLower()))
             {
                 return new AuthResult(false, "[red]Username này đã tồn tại.[/]");
             }
+
+            // Thêm logic kiểm tra trùng lặp email
+            if (await _context.Users.AnyAsync(u => u.Email.ToLower() == data.Email.ToLower()))
+            {
+                return new AuthResult(false, "[red]Email này đã được sử dụng.[/]");
+            }
+
             var newUser = new User
             {
                 Username = data.Username,
@@ -43,7 +54,9 @@ namespace Project1_VTCA.Services
                 PhoneNumber = data.PhoneNumber,
                 Gender = data.Gender,
                 Role = "Customer",
-                IsActive = true
+                IsActive = true,
+                Balance = 0,
+                TotalSpending = 0
             };
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
@@ -52,12 +65,12 @@ namespace Project1_VTCA.Services
 
         public async Task<AuthResult> ForgotPasswordAsync(string username, string email, string newPassword)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
             if (user == null)
             {
                 return new AuthResult(false, "[red]Không tìm thấy tài khoản với username này.[/]");
             }
-            if (user.Email?.Equals(email, System.StringComparison.OrdinalIgnoreCase) != true)
+            if (user.Email?.ToLower() != email.ToLower())
             {
                 return new AuthResult(false, "[red]Email không khớp với tài khoản.[/]");
             }

@@ -10,29 +10,27 @@ namespace Project1_VTCA.Utils
             return Regex.IsMatch(username, @"^[a-zA-Z0-9]{3,20}$");
         }
 
-        // Cập nhật quy tắc kiểm tra mật khẩu mạnh
         public static bool IsValidPassword(string password)
         {
-            if (string.IsNullOrWhiteSpace(password) || password.Length < 8 || password.Length > 20)
-            {
-                return false;
-            }
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8 || password.Length > 20) return false;
+
             var hasUpperChar = new Regex(@"[A-Z]+");
             var hasLowerChar = new Regex(@"[a-z]+");
             var hasNumber = new Regex(@"[0-9]+");
-            var hasSpecialChar = new Regex(@"[\W_]+"); // \W là ký tự không phải chữ và số
+            var hasSpecialChar = new Regex(@"[\W_]+");
 
             return hasUpperChar.IsMatch(password) && hasLowerChar.IsMatch(password) && hasNumber.IsMatch(password) && hasSpecialChar.IsMatch(password);
         }
 
-        // Cập nhật Regex để đảm bảo định dạng email chuẩn
+        // CẬP NHẬT REGEX VÀ LOGIC KIỂM TRA EMAIL
         public static bool IsValidEmail(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) return false;
-            return Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.IgnoreCase);
+            // Quy tắc: Chỉ chứa chữ thường, số, dấu chấm '.'
+            // và phải kết thúc bằng @gmail.com
+            return Regex.IsMatch(email, @"^[a-z0-9\.]+@gmail\.com$");
         }
 
-        // Cập nhật Regex để đảm bảo bắt đầu bằng số 0 và có đúng 10 chữ số
         public static bool IsValidPhoneNumber(string phoneNumber)
         {
             if (string.IsNullOrWhiteSpace(phoneNumber)) return false;
