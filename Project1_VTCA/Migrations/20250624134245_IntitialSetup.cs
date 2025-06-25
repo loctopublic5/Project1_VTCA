@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Project1_VTCA.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialProjectSetup : Migration
+    public partial class IntitialSetup : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -44,7 +44,7 @@ namespace Project1_VTCA.Migrations
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     GenderApplicability = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    TotalQuantity = table.Column<int>(type: "int", nullable: false),
+                    TotalQuantity = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
                     IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
@@ -269,59 +269,68 @@ namespace Project1_VTCA.Migrations
 
             migrationBuilder.InsertData(
                 table: "Products",
-                columns: new[] { "ProductID", "Description", "GenderApplicability", "IsActive", "Name", "Price", "TotalQuantity" },
+                columns: new[] { "ProductID", "Description", "GenderApplicability", "IsActive", "Name", "Price" },
                 values: new object[,]
                 {
-                    { 1, "Biểu tượng bất hủ của Nike, thiết kế da trơn cổ điển, đệm Air-Sole êm ái. Phù hợp mọi phong cách, dễ phối đồ, độ bền cao.", "Unisex", true, "Nike Air Force 1 '07", 2290000.00m, 515 },
-                    { 2, "Thiết kế mũi vỏ sò (shell-toe) đặc trưng và 3 sọc răng cưa kinh điển. Một trong những đôi sneaker có ảnh hưởng nhất mọi thời đại, dễ nhận diện.", "Unisex", true, "Adidas Superstar", 1890000.00m, 525 },
-                    { 3, "Phiên bản cổ cao kinh điển với thân giày bằng vải canvas bền chắc, đế cao su lưu hóa. Biểu tượng của sự trẻ trung, cá tính và tự do.", "Unisex", true, "Converse Chuck Taylor All Star Classic", 1395000.00m, 535 },
-                    { 4, "Thiết kế cổ thấp với sọc jazz đặc trưng của Vans bên hông giày. Chất liệu canvas và da lộn kết hợp. Được yêu thích trong cộng đồng skate và thời trang đường phố.", "Unisex", true, "Vans Old Skool Classic", 1480000.00m, 555 },
-                    { 5, "Dáng giày chạy bộ cổ điển từ những năm 80. Công nghệ ENCAP ở đế giữa giúp tăng cường độ ổn định. Thân giày kết hợp da lộn và vải lưới thoáng khí. Mang đậm phong cách vintage.", "Unisex", true, "New Balance 574 Core", 779000.00m, 565 },
-                    { 6, "Thiết kế mang tính cách mạng với cửa sổ Air có thể nhìn thấy ở gót chân. Kiểu dáng mạnh mẽ, năng động. Một trong những dòng Air Max được yêu thích nhất.", "Unisex", true, "Nike Air Max 90", 2800000.00m, 575 },
-                    { 7, "Nổi tiếng với công nghệ đệm Boost mang lại sự êm ái và hoàn trả năng lượng vượt trội. Thân giày Primeknit ôm sát chân. Phù hợp cho cả chạy bộ và thời trang hàng ngày.", "Unisex", true, "Adidas Ultra Boost", 2500000.00m, 585 },
-                    { 8, "Mẫu giày chunky \"đình đám\" với đế ngoài răng cưa hầm hố. Thiết kế logo Fila nổi bật. Tạo nên phong cách thời trang cá tính và thu hút.", "Female", true, "Fila Disruptor 2", 1500000.00m, 280 },
-                    { 9, "Dòng sneaker thành công của Biti's, thiết kế trẻ trung. Công nghệ đế LiteFlex siêu nhẹ và êm. Nhiều phiên bản màu sắc và collab độc đáo.", "Unisex", true, "Biti's Hunter X", 767000.00m, 605 },
-                    { 10, "Thiết kế vulcanized cổ điển, tối giản. Thân giày canvas, đế gum đặc trưng. Được giới trẻ yêu thích vì sự đơn giản và chất lượng.", "Unisex", true, "Ananas Basas Bumper Gum", 580000.00m, 615 },
-                    { 11, "Mẫu giày chạy bộ biểu tượng từ những năm 70. Thiết kế đơn giản, thanh lịch với dấu Swoosh lớn. Đế giữa EVA nhẹ, đế ngoài xương cá tăng độ bám.", "Unisex", true, "Nike Cortez", 1800000.00m, 625 },
-                    { 12, "Thiết kế tennis cổ điển, tối giản với 3 hàng lỗ thoáng khí thay cho 3 sọc. Gót giày và lưỡi gà có logo Stan Smith. Một lựa chọn thanh lịch và không bao giờ lỗi mốt.", "Unisex", true, "Adidas Stan Smith", 2290000.00m, 635 },
-                    { 13, "Phiên bản nâng cấp của Chuck Taylor All Star Classic, với chất liệu canvas dày dặn hơn, đế bóng hơn và lót giày êm ái hơn. Mang đậm chất vintage và độ bền cao hơn.", "Unisex", true, "Converse Chuck 70", 2000000.00m, 645 },
-                    { 14, "Thiết kế không dây tiện lợi với họa tiết caro đen trắng kinh điển. Thân giày canvas, cổ giày có đệm. Biểu tượng của văn hóa trượt ván và sự thoải mái.", "Unisex", true, "Vans Slip-On Checkerboard", 1305000.00m, 655 },
-                    { 15, "Mẫu giày bóng rổ cổ điển từ cuối những năm 80, được tái sinh và trở thành hiện tượng. Thiết kế da trơn, form dáng gọn gàng. Mang phong cách retro thể thao.", "Unisex", true, "New Balance 550", 1095000.00m, 665 },
-                    { 16, "Mẫu giày da lộn kinh điển của Puma từ năm 1968. Thiết kế đơn giản với formstripe đặc trưng. Gắn liền với văn hóa hip-hop và b-boy.", "Unisex", true, "Puma Suede Classic", 1500000.00m, 675 },
-                    { 17, "Thiết kế bóng rổ cổ điển với kiểu dáng low-top. Thân giày da, dấu Swoosh lớn. Mang vẻ đẹp vintage, dễ phối đồ.", "Unisex", true, "Nike Blazer Low '77", 3239000.00m, 685 },
-                    { 18, "Mẫu giày bóng rổ từ những năm 80, với chi tiết quai dán đặc trưng ở cổ chân (phiên bản Mid/High) hoặc thiết kế cổ thấp gọn gàng.", "Unisex", true, "Adidas Forum Low", 2590000.00m, 695 },
-                    { 19, "Lấy cảm hứng từ các mẫu giày chạy bộ thập niên 70 của New Balance. Thiết kế độc đáo với logo \"N\" lớn và đế ngoài răng cưa kéo dài.", "Unisex", true, "New Balance 327", 2200000.00m, 705 },
-                    { 20, "Mẫu giày chunky phổ biến với thiết kế nhiều lớp và đế dày. Công nghệ đệm Air-Cooled Memory Foam mang lại sự thoải mái. Phong cách năng động, trẻ trung.", "Female", true, "Skechers D'Lites", 1500000.00m, 200 },
-                    { 21, "Giày chunky đến từ thương hiệu thời trang Hàn Quốc, nổi bật với logo của các đội bóng chày MLB. Đế giày cao và hầm hố.", "Unisex", true, "MLB BigBall Chunky", 1800000.00m, 725 },
-                    { 22, "Thuộc dòng Urbas, sử dụng chất liệu nhung gân (corduroy) độc đáo với 5 gam màu lấy cảm hứng từ mùa thu. Thiết kế vulcanized, phong cách vintage, phi giới tính.", "Unisex", true, "Ananas Urbas Corluray Pack", 580000.00m, 735 },
-                    { 23, "Nổi bật với phần đệm Air lớn nhất ở gót chân (270 độ). Thân giày vải dệt kim thoáng khí. Thiết kế hiện đại, mang lại sự thoải mái tối đa cho việc đi lại hàng ngày.", "Unisex", true, "Nike Air Max 270", 3000000.00m, 745 },
-                    { 24, "Kết hợp giữa thiết kế hiện đại và công nghệ Boost êm ái. Các miếng nhựa EVA đặc trưng ở đế giữa. Thân giày Primeknit hoặc vải lưới. Nhẹ nhàng và thoải mái.", "Unisex", true, "Adidas NMD_R1", 2090000.00m, 755 },
-                    { 25, "Mẫu giày đầu tiên của Vans, thiết kế đơn giản, cổ thấp, dây buộc. Thân giày canvas, đế bánh quế. Một lựa chọn cơ bản và linh hoạt.", "Unisex", true, "Vans Authentic", 1087500.00m, 765 },
-                    { 26, "Thiết kế chunky lấy cảm hứng từ dòng 99X và các mẫu giày chạy bộ đầu những năm 2000. Đế giữa ABZORB và SBS êm ái. Kiểu dáng độc đáo, phá cách.", "Unisex", true, "New Balance 9060", 1479000.00m, 775 },
-                    { 27, "Dòng giày chunky lấy cảm hứng từ công nghệ Running System (RS) thập niên 80. Thiết kế nhiều lớp, màu sắc nổi bật, đế giày dày và êm.", "Unisex", true, "Puma RS-X Series", 1590000.00m, 785 },
-                    { 28, "Dòng giày đường phố của Biti's Hunter, thiết kế trẻ trung, năng động, dễ phối đồ. Tập trung vào sự thoải mái và tính ứng dụng hàng ngày.", "Unisex", true, "Biti's Hunter Street", 679000.00m, 795 },
-                    { 29, "Thuộc dòng Vintas, mang phong cách retro của những năm 2000. Thiết kế đơn giản, sử dụng chất liệu canvas và da lộn.", "Unisex", true, "Ananas Vintas Public 2000s", 620000.00m, 805 },
-                    { 30, "Xuất thân là giày bóng rổ, trở thành biểu tượng thời trang đường phố. Thiết kế cổ thấp, nhiều phối màu đa dạng và các phiên bản collab.", "Unisex", true, "Nike Dunk Low", 2750000.00m, 815 },
-                    { 31, "Mẫu giày training cổ điển từ những năm 60. Thân giày da lộn mềm mại, đế cao su. Thiết kế thanh lịch, gọn gàng.", "Unisex", true, "Adidas Gazelle", 2000000.00m, 825 },
-                    { 32, "Biến thể hiện đại của Chuck Taylor với đế chunky răng cưa độc đáo. Thân giày canvas quen thuộc. Tạo điểm nhấn cá tính cho phong cách.", "Unisex", true, "Converse Run Star Hike", 2500000.00m, 588 },
-                    { 33, "Phiên bản cổ cao của Old Skool, tăng cường bảo vệ mắt cá chân. Sọc jazz đặc trưng, chất liệu canvas và da lộn. Gắn liền với văn hóa trượt ván.", "Unisex", true, "Vans Sk8-Hi", 1755000.00m, 845 },
-                    { 34, "Lấy cảm hứng từ giày chạy bộ cao cấp những năm 2000. Đế giữa ABZORB và N-ergy êm ái. Thiết kế kỹ thuật, chất liệu cao cấp.", "Unisex", true, "New Balance 2002R", 3000000.00m, 855 },
-                    { 35, "Lấy cảm hứng từ mẫu giày California cổ điển. Thiết kế đế platform nhẹ nhàng, nữ tính. Thân giày da. Phong cách thoải mái, phóng khoáng.", "Female", true, "Puma Cali", 1800000.00m, 340 },
-                    { 36, "Phiên bản cổ thấp của huyền thoại Air Jordan 1. Thiết kế mang tính biểu tượng, nhiều phối màu lịch sử và mới mẻ. Chất liệu da.", "Unisex", true, "Nike Air Jordan 1 Low", 3190000.00m, 875 },
-                    { 37, "Thiết kế hiện đại, tập trung vào sự thoải mái và đa năng. Đệm Bounce linh hoạt. Thân giày Forgedmesh hoặc Engineered Mesh.", "Male", true, "Adidas Alphabounce", 2000000.00m, 624 },
-                    { 38, "Mẫu giày chạy bộ cổ điển từ những năm 90, nổi tiếng với thiết kế lưỡi gà chẻ đôi (split tongue). Công nghệ đệm GEL êm ái.", "Unisex", true, "Asics GEL-Lyte III", 2500000.00m, 895 },
-                    { 39, "Mẫu giày chunky lấy cảm hứng từ thập niên 90. Thiết kế nhiều lớp chất liệu, đế giày hầm hố. Phối màu đa dạng, trẻ trung.", "Unisex", true, "Fila Ray Tracer", 1500000.00m, 598 },
-                    { 40, "Các dòng giày chạy bộ của Biti's Hunter, tập trung vào hiệu năng và sự thoải mái. Công nghệ đế Phylon hoặc LiteFlex.", "Unisex", true, "Biti's Hunter Jogging/Running", 881000.00m, 915 },
-                    { 41, "Dòng giày Pattas với thiết kế tối giản, tập trung vào câu chuyện và thông điệp. Thân giày canvas, đế vulcanized.", "Unisex", true, "Ananas Pattas \"Simple Story\"", 500000.00m, 925 },
-                    { 42, "Dòng Air Max mới nhất với công nghệ Dynamic Air (các ống Air có áp suất kép). Mang lại cảm giác chuyển động mượt mà và năng động.", "Unisex", true, "Nike Air Max Dn", 3500000.00m, 935 },
-                    { 43, "Mẫu giày sân cỏ trong nhà (indoor football) kinh điển. Thân giày da hoặc da lộn, đế gum. Thiết kế vượt thời gian, đang rất thịnh hành trở lại.", "Unisex", true, "Adidas Samba OG", 2290000.00m, 945 },
-                    { 44, "Phiên bản hiện đại của Chuck Taylor với đế platform nhẹ và cao. Mang lại vẻ ngoài năng động và tôn dáng.", "Female", true, "Converse Chuck Taylor All Star Move", 1800000.00m, 360 },
-                    { 45, "Lấy cảm hứng từ giày trượt ván thập niên 90, với thiết kế \"phồng\" hơn, lưỡi gà dày và sọc jazz 3D nổi. Mang phong cách chunky retro.", "Unisex", true, "Vans Knu Skool", 1000000.00m, 965 },
-                    { 46, "Mẫu giày chạy bộ cổ điển từ những năm 90, nay trở thành item thời trang được yêu thích. Đế giữa ABZORB êm ái. Thân giày lưới và da tổng hợp.", "Unisex", true, "New Balance 530", 2490000.00m, 975 },
-                    { 47, "Thiết kế đế platform cá tính, lấy cảm hứng từ sự nhộn nhịp đô thị. Dành cho những cô gái yêu thích phong cách thời trang đường phố. Thân giày da.", "Female", true, "Puma Mayze Lth", 2000000.00m, 380 },
-                    { 48, "Mẫu giày chạy bộ đầu những năm 2000, nay trở lại với phong cách retro-tech. Đệm Zoom Air và Cushlon êm ái. Thiết kế nhiều lớp, chi tiết.", "Unisex", true, "Nike Zoom Vomero 5", 3500000.00m, 995 },
-                    { 49, "Lấy cảm hứng từ Adidas Campus cổ điển nhưng với tỷ lệ phóng đại, mang hơi hướng giày skate thập niên 2000. Thân giày da lộn, dây giày bản to.", "Unisex", true, "Adidas Campus 00s", 2500000.00m, 1005 },
-                    { 50, "Phiên bản nâng cấp của dòng Core với công nghệ đế LiteFoam 3.0 cải tiến, tăng độ êm và nhẹ. Thiết kế đa năng, phù hợp nhiều hoạt động.", "Unisex", true, "Biti's Hunter Core LiteFoam 3.0", 843000.00m, 1015 }
+                    { 1, "Biểu tượng bất hủ của Nike, thiết kế da trơn cổ điển, đệm Air-Sole êm ái. Phù hợp mọi phong cách, dễ phối đồ, độ bền cao.", "Unisex", true, "Nike Air Force 1 '07", 2290000.00m },
+                    { 2, "Thiết kế mũi vỏ sò (shell-toe) đặc trưng và 3 sọc răng cưa kinh điển. Một trong những đôi sneaker có ảnh hưởng nhất mọi thời đại, dễ nhận diện.", "Unisex", true, "Adidas Superstar", 1890000.00m },
+                    { 3, "Phiên bản cổ cao kinh điển với thân giày bằng vải canvas bền chắc, đế cao su lưu hóa. Biểu tượng của sự trẻ trung, cá tính và tự do.", "Unisex", true, "Converse Chuck Taylor All Star Classic", 1395000.00m },
+                    { 4, "Thiết kế cổ thấp với sọc jazz đặc trưng của Vans bên hông giày. Chất liệu canvas và da lộn kết hợp. Được yêu thích trong cộng đồng skate và thời trang đường phố.", "Unisex", true, "Vans Old Skool Classic", 1480000.00m },
+                    { 5, "Dáng giày chạy bộ cổ điển từ những năm 80. Công nghệ ENCAP ở đế giữa giúp tăng cường độ ổn định. Thân giày kết hợp da lộn và vải lưới thoáng khí. Mang đậm phong cách vintage.", "Unisex", true, "New Balance 574 Core", 779000.00m },
+                    { 6, "Thiết kế mang tính cách mạng với cửa sổ Air có thể nhìn thấy ở gót chân. Kiểu dáng mạnh mẽ, năng động. Một trong những dòng Air Max được yêu thích nhất.", "Unisex", true, "Nike Air Max 90", 2800000.00m },
+                    { 7, "Nổi tiếng với công nghệ đệm Boost mang lại sự êm ái và hoàn trả năng lượng vượt trội. Thân giày Primeknit ôm sát chân. Phù hợp cho cả chạy bộ và thời trang hàng ngày.", "Unisex", true, "Adidas Ultra Boost", 2500000.00m },
+                    { 8, "Mẫu giày chunky \"đình đám\" với đế ngoài răng cưa hầm hố. Thiết kế logo Fila nổi bật. Tạo nên phong cách thời trang cá tính và thu hút.", "Female", true, "Fila Disruptor 2", 1500000.00m },
+                    { 9, "Dòng sneaker thành công của Biti's, thiết kế trẻ trung. Công nghệ đế LiteFlex siêu nhẹ và êm. Nhiều phiên bản màu sắc và collab độc đáo.", "Unisex", true, "Biti's Hunter X", 767000.00m },
+                    { 10, "Thiết kế vulcanized cổ điển, tối giản. Thân giày canvas, đế gum đặc trưng. Được giới trẻ yêu thích vì sự đơn giản và chất lượng.", "Unisex", true, "Ananas Basas Bumper Gum", 580000.00m },
+                    { 11, "Mẫu giày chạy bộ biểu tượng từ những năm 70. Thiết kế đơn giản, thanh lịch với dấu Swoosh lớn. Đế giữa EVA nhẹ, đế ngoài xương cá tăng độ bám.", "Unisex", true, "Nike Cortez", 1800000.00m },
+                    { 12, "Thiết kế tennis cổ điển, tối giản với 3 hàng lỗ thoáng khí thay cho 3 sọc. Gót giày và lưỡi gà có logo Stan Smith. Một lựa chọn thanh lịch và không bao giờ lỗi mốt.", "Unisex", true, "Adidas Stan Smith", 2290000.00m },
+                    { 13, "Phiên bản nâng cấp của Chuck Taylor All Star Classic, với chất liệu canvas dày dặn hơn, đế bóng hơn và lót giày êm ái hơn. Mang đậm chất vintage và độ bền cao hơn.", "Unisex", true, "Converse Chuck 70", 2000000.00m },
+                    { 14, "Thiết kế không dây tiện lợi với họa tiết caro đen trắng kinh điển. Thân giày canvas, cổ giày có đệm. Biểu tượng của văn hóa trượt ván và sự thoải mái.", "Unisex", true, "Vans Slip-On Checkerboard", 1305000.00m },
+                    { 15, "Mẫu giày bóng rổ cổ điển từ cuối những năm 80, được tái sinh và trở thành hiện tượng. Thiết kế da trơn, form dáng gọn gàng. Mang phong cách retro thể thao.", "Unisex", true, "New Balance 550", 1095000.00m },
+                    { 16, "Mẫu giày da lộn kinh điển của Puma từ năm 1968. Thiết kế đơn giản với formstripe đặc trưng. Gắn liền với văn hóa hip-hop và b-boy.", "Unisex", true, "Puma Suede Classic", 1500000.00m },
+                    { 17, "Thiết kế bóng rổ cổ điển với kiểu dáng low-top. Thân giày da, dấu Swoosh lớn. Mang vẻ đẹp vintage, dễ phối đồ.", "Unisex", true, "Nike Blazer Low '77", 3239000.00m },
+                    { 18, "Mẫu giày bóng rổ từ những năm 80, với chi tiết quai dán đặc trưng ở cổ chân (phiên bản Mid/High) hoặc thiết kế cổ thấp gọn gàng.", "Unisex", true, "Adidas Forum Low", 2590000.00m },
+                    { 19, "Lấy cảm hứng từ các mẫu giày chạy bộ thập niên 70 của New Balance. Thiết kế độc đáo với logo \"N\" lớn và đế ngoài răng cưa kéo dài.", "Unisex", true, "New Balance 327", 2200000.00m },
+                    { 20, "Mẫu giày chunky phổ biến với thiết kế nhiều lớp và đế dày. Công nghệ đệm Air-Cooled Memory Foam mang lại sự thoải mái. Phong cách năng động, trẻ trung.", "Female", true, "Skechers D'Lites", 1500000.00m },
+                    { 21, "Giày chunky đến từ thương hiệu thời trang Hàn Quốc, nổi bật với logo của các đội bóng chày MLB. Đế giày cao và hầm hố.", "Unisex", true, "MLB BigBall Chunky", 1800000.00m },
+                    { 22, "Thuộc dòng Urbas, sử dụng chất liệu nhung gân (corduroy) độc đáo với 5 gam màu lấy cảm hứng từ mùa thu. Thiết kế vulcanized, phong cách vintage, phi giới tính.", "Unisex", true, "Ananas Urbas Corluray Pack", 580000.00m },
+                    { 23, "Nổi bật với phần đệm Air lớn nhất ở gót chân (270 độ). Thân giày vải dệt kim thoáng khí. Thiết kế hiện đại, mang lại sự thoải mái tối đa cho việc đi lại hàng ngày.", "Unisex", true, "Nike Air Max 270", 3000000.00m },
+                    { 24, "Kết hợp giữa thiết kế hiện đại và công nghệ Boost êm ái. Các miếng nhựa EVA đặc trưng ở đế giữa. Thân giày Primeknit hoặc vải lưới. Nhẹ nhàng và thoải mái.", "Unisex", true, "Adidas NMD_R1", 2090000.00m },
+                    { 25, "Mẫu giày đầu tiên của Vans, thiết kế đơn giản, cổ thấp, dây buộc. Thân giày canvas, đế bánh quế. Một lựa chọn cơ bản và linh hoạt.", "Unisex", true, "Vans Authentic", 1087500.00m },
+                    { 26, "Thiết kế chunky lấy cảm hứng từ dòng 99X và các mẫu giày chạy bộ đầu những năm 2000. Đế giữa ABZORB và SBS êm ái. Kiểu dáng độc đáo, phá cách.", "Unisex", true, "New Balance 9060", 1479000.00m },
+                    { 27, "Dòng giày chunky lấy cảm hứng từ công nghệ Running System (RS) thập niên 80. Thiết kế nhiều lớp, màu sắc nổi bật, đế giày dày và êm.", "Unisex", true, "Puma RS-X Series", 1590000.00m },
+                    { 28, "Dòng giày đường phố của Biti's Hunter, thiết kế trẻ trung, năng động, dễ phối đồ. Tập trung vào sự thoải mái và tính ứng dụng hàng ngày.", "Unisex", true, "Biti's Hunter Street", 679000.00m },
+                    { 29, "Thuộc dòng Vintas, mang phong cách retro của những năm 2000. Thiết kế đơn giản, sử dụng chất liệu canvas và da lộn.", "Unisex", true, "Ananas Vintas Public 2000s", 620000.00m },
+                    { 30, "Xuất thân là giày bóng rổ, trở thành biểu tượng thời trang đường phố. Thiết kế cổ thấp, nhiều phối màu đa dạng và các phiên bản collab.", "Unisex", true, "Nike Dunk Low", 2750000.00m },
+                    { 31, "Mẫu giày training cổ điển từ những năm 60. Thân giày da lộn mềm mại, đế cao su. Thiết kế thanh lịch, gọn gàng.", "Unisex", true, "Adidas Gazelle", 2000000.00m },
+                    { 32, "Biến thể hiện đại của Chuck Taylor với đế chunky răng cưa độc đáo. Thân giày canvas quen thuộc. Tạo điểm nhấn cá tính cho phong cách.", "Unisex", true, "Converse Run Star Hike", 2500000.00m },
+                    { 33, "Phiên bản cổ cao của Old Skool, tăng cường bảo vệ mắt cá chân. Sọc jazz đặc trưng, chất liệu canvas và da lộn. Gắn liền với văn hóa trượt ván.", "Unisex", true, "Vans Sk8-Hi", 1755000.00m },
+                    { 34, "Lấy cảm hứng từ giày chạy bộ cao cấp những năm 2000. Đế giữa ABZORB và N-ergy êm ái. Thiết kế kỹ thuật, chất liệu cao cấp.", "Unisex", true, "New Balance 2002R", 3000000.00m },
+                    { 35, "Lấy cảm hứng từ mẫu giày California cổ điển. Thiết kế đế platform nhẹ nhàng, nữ tính. Thân giày da. Phong cách thoải mái, phóng khoáng.", "Female", true, "Puma Cali", 1800000.00m },
+                    { 36, "Phiên bản cổ thấp của huyền thoại Air Jordan 1. Thiết kế mang tính biểu tượng, nhiều phối màu lịch sử và mới mẻ. Chất liệu da.", "Unisex", true, "Nike Air Jordan 1 Low", 3190000.00m },
+                    { 37, "Thiết kế hiện đại, tập trung vào sự thoải mái và đa năng. Đệm Bounce linh hoạt. Thân giày Forgedmesh hoặc Engineered Mesh.", "Male", true, "Adidas Alphabounce", 2000000.00m },
+                    { 38, "Mẫu giày chạy bộ cổ điển từ những năm 90, nổi tiếng với thiết kế lưỡi gà chẻ đôi (split tongue). Công nghệ đệm GEL êm ái.", "Unisex", true, "Asics GEL-Lyte III", 2500000.00m },
+                    { 39, "Mẫu giày chunky lấy cảm hứng từ thập niên 90. Thiết kế nhiều lớp chất liệu, đế giày hầm hố. Phối màu đa dạng, trẻ trung.", "Unisex", true, "Fila Ray Tracer", 1500000.00m },
+                    { 40, "Các dòng giày chạy bộ của Biti's Hunter, tập trung vào hiệu năng và sự thoải mái. Công nghệ đế Phylon hoặc LiteFlex.", "Unisex", true, "Biti's Hunter Jogging/Running", 881000.00m },
+                    { 41, "Dòng giày Pattas với thiết kế tối giản, tập trung vào câu chuyện và thông điệp. Thân giày canvas, đế vulcanized.", "Unisex", true, "Ananas Pattas \"Simple Story\"", 500000.00m },
+                    { 42, "Dòng Air Max mới nhất với công nghệ Dynamic Air (các ống Air có áp suất kép). Mang lại cảm giác chuyển động mượt mà và năng động.", "Unisex", true, "Nike Air Max Dn", 3500000.00m },
+                    { 43, "Mẫu giày sân cỏ trong nhà (indoor football) kinh điển. Thân giày da hoặc da lộn, đế gum. Thiết kế vượt thời gian, đang rất thịnh hành trở lại.", "Unisex", true, "Adidas Samba OG", 2290000.00m },
+                    { 44, "Phiên bản hiện đại của Chuck Taylor với đế platform nhẹ và cao. Mang lại vẻ ngoài năng động và tôn dáng.", "Female", true, "Converse Chuck Taylor All Star Move", 1800000.00m },
+                    { 45, "Lấy cảm hứng từ giày trượt ván thập niên 90, với thiết kế \"phồng\" hơn, lưỡi gà dày và sọc jazz 3D nổi. Mang phong cách chunky retro.", "Unisex", true, "Vans Knu Skool", 1000000.00m },
+                    { 46, "Mẫu giày chạy bộ cổ điển từ những năm 90, nay trở thành item thời trang được yêu thích. Đế giữa ABZORB êm ái. Thân giày lưới và da tổng hợp.", "Unisex", true, "New Balance 530", 2490000.00m },
+                    { 47, "Thiết kế đế platform cá tính, lấy cảm hứng từ sự nhộn nhịp đô thị. Dành cho những cô gái yêu thích phong cách thời trang đường phố. Thân giày da.", "Female", true, "Puma Mayze Lth", 2000000.00m },
+                    { 48, "Mẫu giày chạy bộ đầu những năm 2000, nay trở lại với phong cách retro-tech. Đệm Zoom Air và Cushlon êm ái. Thiết kế nhiều lớp, chi tiết.", "Unisex", true, "Nike Zoom Vomero 5", 3500000.00m },
+                    { 49, "Lấy cảm hứng từ Adidas Campus cổ điển nhưng với tỷ lệ phóng đại, mang hơi hướng giày skate thập niên 2000. Thân giày da lộn, dây giày bản to.", "Unisex", true, "Adidas Campus 00s", 2500000.00m },
+                    { 50, "Phiên bản nâng cấp của dòng Core với công nghệ đế LiteFoam 3.0 cải tiến, tăng độ êm và nhẹ. Thiết kế đa năng, phù hợp nhiều hoạt động.", "Unisex", true, "Biti's Hunter Core LiteFoam 3.0", 843000.00m }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Promotions",
+                columns: new[] { "PromotionID", "ApplicableCategoryId", "ApplicableGender", "ApplicableProductId", "ApplicableSize", "Code", "DiscountAmount", "DiscountPercentage", "ExpiryDate", "IsActive" },
+                values: new object[,]
+                {
+                    { 1, null, "Female", null, null, "FORHER15", null, 15.00m, new DateTime(2030, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true },
+                    { 2, null, "Male", null, null, "FORHIM15", null, 15.00m, new DateTime(2030, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true }
                 });
 
             migrationBuilder.InsertData(
@@ -679,6 +688,18 @@ namespace Project1_VTCA.Migrations
                     { 5, 50 },
                     { 7, 50 },
                     { 14, 50 }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Promotions",
+                columns: new[] { "PromotionID", "ApplicableCategoryId", "ApplicableGender", "ApplicableProductId", "ApplicableSize", "Code", "DiscountAmount", "DiscountPercentage", "ExpiryDate", "IsActive" },
+                values: new object[,]
+                {
+                    { 3, 5, "Female", null, null, "FEMALETECH10", null, 10.00m, new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true },
+                    { 4, 7, "Female", null, null, "FEMALELOCAL10", null, 10.00m, new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true },
+                    { 5, 6, "Male", null, null, "MALECHUNKY10", null, 10.00m, new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true },
+                    { 6, 3, "Male", null, null, "MALELIFESTYLE10", null, 10.00m, new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true },
+                    { 7, 4, "All", null, null, "RETROFORALL10", null, 10.00m, new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified), true }
                 });
 
             migrationBuilder.CreateIndex(

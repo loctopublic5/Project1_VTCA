@@ -1,14 +1,16 @@
-﻿using System;
+﻿using Project1_VTCA.Data;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Project1_VTCA.Data;
 
 namespace Project1_VTCA.Services
 {
     public interface IProductService
     {
-        Task<(List<Product> Products, int TotalPages)> GetActiveProductsPaginatedAsync(int pageNumber, int pageSize);
+        IQueryable<Product> GetActiveProductsQuery();
+        IQueryable<Product> GetSearchQuery(string searchTerm);
+        IQueryable<Product> GetCategoryFilterQuery(List<int> categoryIds);
+        Task<(List<Product> Products, int TotalPages)> GetPaginatedProductsAsync(IQueryable<Product> query, int pageNumber, int pageSize, string sortBy);
+        Task<Product> GetProductByIdAsync(int productId);
+        Task<List<Category>> GetAllProductCategoriesAsync();
     }
 }

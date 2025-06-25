@@ -12,8 +12,8 @@ using Project1_VTCA.Data;
 namespace Project1_VTCA.Migrations
 {
     [DbContext(typeof(SneakerShopDbContext))]
-    [Migration("20250614181902_AddCustomTriggers")]
-    partial class AddCustomTriggers
+    [Migration("20250624134245_IntitialSetup")]
+    partial class IntitialSetup
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -379,7 +379,8 @@ namespace Project1_VTCA.Migrations
 
                     b.Property<int>("TotalQuantity")
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.HasKey("ProductID");
 
@@ -394,7 +395,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Air Force 1 '07",
                             Price = 2290000.00m,
-                            TotalQuantity = 515
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -404,7 +405,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Superstar",
                             Price = 1890000.00m,
-                            TotalQuantity = 525
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -414,7 +415,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Converse Chuck Taylor All Star Classic",
                             Price = 1395000.00m,
-                            TotalQuantity = 535
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -424,7 +425,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Vans Old Skool Classic",
                             Price = 1480000.00m,
-                            TotalQuantity = 555
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -434,7 +435,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 574 Core",
                             Price = 779000.00m,
-                            TotalQuantity = 565
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -444,7 +445,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Air Max 90",
                             Price = 2800000.00m,
-                            TotalQuantity = 575
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -454,7 +455,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Ultra Boost",
                             Price = 2500000.00m,
-                            TotalQuantity = 585
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -464,7 +465,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Fila Disruptor 2",
                             Price = 1500000.00m,
-                            TotalQuantity = 280
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -474,7 +475,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Biti's Hunter X",
                             Price = 767000.00m,
-                            TotalQuantity = 605
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -484,7 +485,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Ananas Basas Bumper Gum",
                             Price = 580000.00m,
-                            TotalQuantity = 615
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -494,7 +495,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Cortez",
                             Price = 1800000.00m,
-                            TotalQuantity = 625
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -504,7 +505,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Stan Smith",
                             Price = 2290000.00m,
-                            TotalQuantity = 635
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -514,7 +515,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Converse Chuck 70",
                             Price = 2000000.00m,
-                            TotalQuantity = 645
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -524,7 +525,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Vans Slip-On Checkerboard",
                             Price = 1305000.00m,
-                            TotalQuantity = 655
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -534,7 +535,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 550",
                             Price = 1095000.00m,
-                            TotalQuantity = 665
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -544,7 +545,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Puma Suede Classic",
                             Price = 1500000.00m,
-                            TotalQuantity = 675
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -554,7 +555,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Blazer Low '77",
                             Price = 3239000.00m,
-                            TotalQuantity = 685
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -564,7 +565,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Forum Low",
                             Price = 2590000.00m,
-                            TotalQuantity = 695
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -574,7 +575,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 327",
                             Price = 2200000.00m,
-                            TotalQuantity = 705
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -584,7 +585,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Skechers D'Lites",
                             Price = 1500000.00m,
-                            TotalQuantity = 200
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -594,7 +595,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "MLB BigBall Chunky",
                             Price = 1800000.00m,
-                            TotalQuantity = 725
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -604,7 +605,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Ananas Urbas Corluray Pack",
                             Price = 580000.00m,
-                            TotalQuantity = 735
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -614,7 +615,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Air Max 270",
                             Price = 3000000.00m,
-                            TotalQuantity = 745
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -624,7 +625,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas NMD_R1",
                             Price = 2090000.00m,
-                            TotalQuantity = 755
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -634,7 +635,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Vans Authentic",
                             Price = 1087500.00m,
-                            TotalQuantity = 765
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -644,7 +645,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 9060",
                             Price = 1479000.00m,
-                            TotalQuantity = 775
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -654,7 +655,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Puma RS-X Series",
                             Price = 1590000.00m,
-                            TotalQuantity = 785
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -664,7 +665,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Biti's Hunter Street",
                             Price = 679000.00m,
-                            TotalQuantity = 795
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -674,7 +675,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Ananas Vintas Public 2000s",
                             Price = 620000.00m,
-                            TotalQuantity = 805
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -684,7 +685,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Dunk Low",
                             Price = 2750000.00m,
-                            TotalQuantity = 815
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -694,7 +695,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Gazelle",
                             Price = 2000000.00m,
-                            TotalQuantity = 825
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -704,7 +705,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Converse Run Star Hike",
                             Price = 2500000.00m,
-                            TotalQuantity = 588
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -714,7 +715,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Vans Sk8-Hi",
                             Price = 1755000.00m,
-                            TotalQuantity = 845
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -724,7 +725,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 2002R",
                             Price = 3000000.00m,
-                            TotalQuantity = 855
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -734,7 +735,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Puma Cali",
                             Price = 1800000.00m,
-                            TotalQuantity = 340
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -744,7 +745,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Air Jordan 1 Low",
                             Price = 3190000.00m,
-                            TotalQuantity = 875
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -754,7 +755,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Alphabounce",
                             Price = 2000000.00m,
-                            TotalQuantity = 624
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -764,7 +765,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Asics GEL-Lyte III",
                             Price = 2500000.00m,
-                            TotalQuantity = 895
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -774,7 +775,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Fila Ray Tracer",
                             Price = 1500000.00m,
-                            TotalQuantity = 598
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -784,7 +785,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Biti's Hunter Jogging/Running",
                             Price = 881000.00m,
-                            TotalQuantity = 915
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -794,7 +795,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Ananas Pattas \"Simple Story\"",
                             Price = 500000.00m,
-                            TotalQuantity = 925
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -804,7 +805,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Air Max Dn",
                             Price = 3500000.00m,
-                            TotalQuantity = 935
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -814,7 +815,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Samba OG",
                             Price = 2290000.00m,
-                            TotalQuantity = 945
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -824,7 +825,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Converse Chuck Taylor All Star Move",
                             Price = 1800000.00m,
-                            TotalQuantity = 360
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -834,7 +835,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Vans Knu Skool",
                             Price = 1000000.00m,
-                            TotalQuantity = 965
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -844,7 +845,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "New Balance 530",
                             Price = 2490000.00m,
-                            TotalQuantity = 975
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -854,7 +855,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Puma Mayze Lth",
                             Price = 2000000.00m,
-                            TotalQuantity = 380
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -864,7 +865,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Nike Zoom Vomero 5",
                             Price = 3500000.00m,
-                            TotalQuantity = 995
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -874,7 +875,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Adidas Campus 00s",
                             Price = 2500000.00m,
-                            TotalQuantity = 1005
+                            TotalQuantity = 0
                         },
                         new
                         {
@@ -884,7 +885,7 @@ namespace Project1_VTCA.Migrations
                             IsActive = true,
                             Name = "Biti's Hunter Core LiteFoam 3.0",
                             Price = 843000.00m,
-                            TotalQuantity = 1015
+                            TotalQuantity = 0
                         });
                 });
 
@@ -2749,6 +2750,76 @@ namespace Project1_VTCA.Migrations
                     b.HasIndex("ApplicableProductId");
 
                     b.ToTable("Promotions");
+
+                    b.HasData(
+                        new
+                        {
+                            PromotionID = 1,
+                            ApplicableGender = "Female",
+                            Code = "FORHER15",
+                            DiscountPercentage = 15.00m,
+                            ExpiryDate = new DateTime(2030, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 2,
+                            ApplicableGender = "Male",
+                            Code = "FORHIM15",
+                            DiscountPercentage = 15.00m,
+                            ExpiryDate = new DateTime(2030, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 3,
+                            ApplicableCategoryId = 5,
+                            ApplicableGender = "Female",
+                            Code = "FEMALETECH10",
+                            DiscountPercentage = 10.00m,
+                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 4,
+                            ApplicableCategoryId = 7,
+                            ApplicableGender = "Female",
+                            Code = "FEMALELOCAL10",
+                            DiscountPercentage = 10.00m,
+                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 5,
+                            ApplicableCategoryId = 6,
+                            ApplicableGender = "Male",
+                            Code = "MALECHUNKY10",
+                            DiscountPercentage = 10.00m,
+                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 6,
+                            ApplicableCategoryId = 3,
+                            ApplicableGender = "Male",
+                            Code = "MALELIFESTYLE10",
+                            DiscountPercentage = 10.00m,
+                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        },
+                        new
+                        {
+                            PromotionID = 7,
+                            ApplicableCategoryId = 4,
+                            ApplicableGender = "All",
+                            Code = "RETROFORALL10",
+                            DiscountPercentage = 10.00m,
+                            ExpiryDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsActive = true
+                        });
                 });
 
             modelBuilder.Entity("Project1_VTCA.Data.User", b =>
