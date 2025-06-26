@@ -5,7 +5,10 @@ using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
 using Project1_VTCA.DTOs;
 using Project1_VTCA.Services;
+using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI;
+using Project1_VTCA.UI.Draw;
+using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System;
 using System.Linq;
@@ -28,13 +31,14 @@ class Program
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddScoped<IPromotionService, PromotionService>();
+        builder.Services.AddScoped<ICartService, CartService>();
 
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
         builder.Services.AddTransient<ProductMenu>();
         builder.Services.AddTransient<IUserMenu, UserMenu>();
         builder.Services.AddTransient<IAdminMenu, AdminMenu>();
-       
+        builder.Services.AddTransient<ICartMenu, CartMenu>();
 
         using var host = builder.Build();
 

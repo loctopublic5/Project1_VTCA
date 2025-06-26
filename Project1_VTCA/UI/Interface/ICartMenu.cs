@@ -2,8 +2,8 @@
 
 namespace Project1_VTCA.UI
 {
-    public interface IUserMenu
+    public interface ICartMenu
     {
-        Task Show();
+        Task ShowAsync();
     }
 }

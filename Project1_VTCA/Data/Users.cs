@@ -45,9 +45,9 @@ namespace Project1_VTCA.Data
         public bool IsActive { get; set; }
 
         // Các mối quan hệ
-        public ICollection<Address> Addresses { get; set; }
-        public ICollection<CartItem> CartItems { get; set; }
-        public ICollection<Order> Orders { get; set; }
-        public ICollection<Order> ApprovedOrders { get; set; }
+        public virtual ICollection<Address> Addresses { get; set; }
+        public virtual ICollection<CartItem> CartItems { get; set; }
+        public virtual ICollection<Order> Orders { get; set; } // Đơn hàng do user này đặt
+        public virtual ICollection<Order> ApprovedOrders { get; set; } // Đơn hàng do user này (admin) duyệt
     }
 }

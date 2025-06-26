@@ -1,7 +1,7 @@
 ﻿using Spectre.Console;
 using Spectre.Console.Rendering;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Draw
 {
     public class ConsoleLayout
     {

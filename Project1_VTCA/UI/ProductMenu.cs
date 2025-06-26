@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
-using Project1_VTCA.Services;
+using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Draw;
 using Project1_VTCA.Utils;
 using Spectre.Console;
 using System;
@@ -16,6 +17,7 @@ namespace Project1_VTCA.UI
         private readonly IProductService _productService;
         private readonly IPromotionService _promotionService;
         private readonly ISessionService _sessionService;
+        private readonly ICartService _cartService;
         private readonly ConsoleLayout _layout;
 
         public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ConsoleLayout layout)
@@ -23,6 +25,7 @@ namespace Project1_VTCA.UI
             _productService = productService;
             _promotionService = promotionService;
             _sessionService = sessionService;
+            _cartService = _cartService;
             _layout = layout;
         }
 
@@ -251,8 +254,7 @@ namespace Project1_VTCA.UI
                         Console.ReadKey();
                         break;
                     case "2":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Thêm vào giỏ hàng' sẽ được hiện thực sau.[/]");
-                        Console.ReadKey();
+                        await HandleAddToCartFlowAsync(product);
                         break;
                     case "3":
                         return;
@@ -305,6 +307,73 @@ namespace Project1_VTCA.UI
             }
         }
 
+
+
+        private async Task HandleAddToCartFlowAsync(Product product)
+        {
+            if (!_sessionService.IsLoggedIn)
+            {
+                AnsiConsole.MarkupLine("\n[red]Bạn cần đăng nhập để thực hiện chức năng này.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var availableSizes = product.ProductSizes?.Where(s => s.QuantityInStock > 0).ToList();
+            if (availableSizes == null || !availableSizes.Any())
+            {
+                AnsiConsole.MarkupLine("\n[red]Sản phẩm này hiện đã hết hàng.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            // Bước 1: Chọn Size
+            AnsiConsole.Clear();
+            Banner.Show();
+            var selectedSize = AnsiConsole.Prompt(
+                new SelectionPrompt<ProductSize>()
+                    .Title($"[bold]BƯỚC 1: CHỌN SIZE CHO[/] [underline]{Markup.Escape(product.Name)}[/]")
+                    .PageSize(10)
+                    .MoreChoicesText("[grey](Dùng phím Lên/Xuống để chọn, Enter để tiếp tục)[/]")
+                    .UseConverter(ps => $"{ps.Size} (Tồn kho: {ps.QuantityInStock})")
+                    .AddChoices(availableSizes)
+            );
+
+            // Bước 2: Nhập Số lượng
+            var quantity = AnsiConsole.Prompt(
+                new TextPrompt<int>($"\nBƯỚC 2: Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
+                    .ValidationErrorMessage("[red]Dữ liệu không hợp lệ![/]")
+                    .Validate(q =>
+                    {
+                        int stock = selectedSize.QuantityInStock ?? 0;
+                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
+                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
+                        if (q > stock) return ValidationResult.Error($"[red]Số lượng tồn kho không đủ (chỉ còn {stock}).[/]");
+                        return ValidationResult.Success();
+                    })
+            );
+
+            // Bước 3: Xác nhận
+            AnsiConsole.WriteLine();
+            var table = new Table().Border(TableBorder.None).HideHeaders().Expand();
+            table.AddColumn("");
+            table.AddColumn("");
+            table.AddRow("[bold]Sản phẩm:[/]", Markup.Escape(product.Name));
+            table.AddRow("[bold]Size đã chọn:[/]", $"[yellow]{selectedSize.Size}[/]");
+            table.AddRow("[bold]Số lượng:[/]", $"[yellow]{quantity}[/]");
+            AnsiConsole.Write(new Panel(table).Header("XÁC NHẬN THÔNG TIN").Border(BoxBorder.Rounded));
+
+            if (!AnsiConsole.Confirm("\n[bold]Xác nhận thêm vào giỏ hàng?[/]", defaultValue: true))
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            // Bước 4: Gọi Service và hiển thị kết quả
+            string message = await _cartService.AddToCartAsync(_sessionService.CurrentUser.UserID, product.ProductID, selectedSize.Size, quantity);
+            AnsiConsole.MarkupLine($"\n{message}");
+            Console.ReadKey();
+        }
 
 
         private async Task<Table> CreateProductTableAsync(List<Product> products)
