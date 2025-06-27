@@ -2,6 +2,7 @@
 using Project1_VTCA.UI.Draw;
 using Project1_VTCA.UI.Interface;
 using Spectre.Console;
+using System;
 using System.Threading.Tasks;
 
 namespace Project1_VTCA.UI
@@ -11,15 +12,14 @@ namespace Project1_VTCA.UI
         private readonly ProductMenu _productMenu;
         private readonly ICartMenu _cartMenu;
         private readonly ISessionService _sessionService;
-        // Chúng ta sẽ tiêm các service khác vào đây sau
-        // private readonly IFeaturedProductMenu _featuredProductMenu; 
+      
 
         public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu)
         {
             _productMenu = productMenu;
             _cartMenu = cartMenu;
             _sessionService = sessionService;
-            // _featuredProductMenu = featuredProductMenu;
+           
         }
 
         public async Task Show()
@@ -47,7 +47,6 @@ namespace Project1_VTCA.UI
                 switch (choice)
                 {
                     case "Duyệt sản phẩm (Tất cả sản phẩm)":
-                        // Gọi đến ProductMenu, nơi sẽ hiển thị layout 3 khung
                         await _productMenu.ShowAllProductsAsync();
                         break;
                     case "Xem sản phẩm nổi bật":
@@ -57,7 +56,7 @@ namespace Project1_VTCA.UI
                     case "Xem giỏ hàng":
                         await _cartMenu.ShowAsync();
                         break;
-                        
+
                     case "Quản lý tài khoản (Địa chỉ, Lịch sử mua hàng...)":
                         AnsiConsole.MarkupLine("[yellow]Chức năng 'Quản lý tài khoản' đang được xây dựng.[/]");
                         Console.ReadKey();

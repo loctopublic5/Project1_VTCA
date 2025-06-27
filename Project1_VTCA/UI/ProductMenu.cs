@@ -20,12 +20,12 @@ namespace Project1_VTCA.UI
         private readonly ICartService _cartService;
         private readonly ConsoleLayout _layout;
 
-        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ConsoleLayout layout)
+        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ICartService cartService, ConsoleLayout layout)
         {
             _productService = productService;
             _promotionService = promotionService;
             _sessionService = sessionService;
-            _cartService = _cartService;
+            _cartService = cartService;
             _layout = layout;
         }
 
@@ -309,7 +309,7 @@ namespace Project1_VTCA.UI
 
 
 
-        private async Task HandleAddToCartFlowAsync(Product product)
+       private async Task HandleAddToCartFlowAsync(Product product)
         {
             if (!_sessionService.IsLoggedIn)
             {
@@ -354,12 +354,17 @@ namespace Project1_VTCA.UI
 
             // Bước 3: Xác nhận
             AnsiConsole.WriteLine();
+            var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
+            var finalPrice = discountedPrice ?? product.Price;
+
             var table = new Table().Border(TableBorder.None).HideHeaders().Expand();
             table.AddColumn("");
             table.AddColumn("");
             table.AddRow("[bold]Sản phẩm:[/]", Markup.Escape(product.Name));
             table.AddRow("[bold]Size đã chọn:[/]", $"[yellow]{selectedSize.Size}[/]");
             table.AddRow("[bold]Số lượng:[/]", $"[yellow]{quantity}[/]");
+            table.AddRow("[bold]Tổng cộng:[/]", $"[green]{(finalPrice * quantity):N0} VNĐ[/]");
+
             AnsiConsole.Write(new Panel(table).Header("XÁC NHẬN THÔNG TIN").Border(BoxBorder.Rounded));
 
             if (!AnsiConsole.Confirm("\n[bold]Xác nhận thêm vào giỏ hàng?[/]", defaultValue: true))
@@ -374,6 +379,7 @@ namespace Project1_VTCA.UI
             AnsiConsole.MarkupLine($"\n{message}");
             Console.ReadKey();
         }
+
 
 
         private async Task<Table> CreateProductTableAsync(List<Product> products)

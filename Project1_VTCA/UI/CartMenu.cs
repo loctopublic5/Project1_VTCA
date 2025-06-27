@@ -1,6 +1,7 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Draw;
+using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace Project1_VTCA.UI
         private readonly ISessionService _sessionService;
         private readonly IPromotionService _promotionService;
         private readonly ConsoleLayout _layout;
-        
+
 
         public CartMenu(ICartService cartService, ISessionService sessionService, IPromotionService promotionService, ConsoleLayout layout)
         {
@@ -23,7 +24,7 @@ namespace Project1_VTCA.UI
             _sessionService = sessionService;
             _promotionService = promotionService;
             _layout = layout;
-            
+
         }
 
         public async Task ShowAsync()
@@ -34,14 +35,14 @@ namespace Project1_VTCA.UI
 
                 var menuContent = new Markup(
                     "[bold yellow underline]GIỎ HÀNG[/]\n" +
-                    "1. Cập nhật số lượng\n" +
-                    "2. Xóa sản phẩm\n" +
-                    "3. Tiến hành Thanh toán\n\n" +
+                    "1. Cập nhật số lượng (sắp có)\n" +
+                    "2. Xóa sản phẩm (sắp có)\n" +
+                    "3. Tiến hành Thanh toán (sắp có)\n\n" +
                     "[red]4. Quay về Menu chính[/]"
                 );
 
                 var cartTable = await CreateCartTableAsync(cartItems);
-                var notification = new Markup("[dim]Chọn một hành động từ menu bên trái.[/]");
+                var notification = new Markup("[dim]Chọn một hành động từ menu bên trái hoặc nhập '4' để thoát.[/]");
 
                 _layout.Render(menuContent, cartTable, notification);
 
@@ -51,49 +52,32 @@ namespace Project1_VTCA.UI
                 switch (choice)
                 {
                     case "1":
-                        await HandleUpdateQuantity();
+                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Cập nhật số lượng' sẽ được hiện thực sau.[/]");
+                        Console.ReadKey();
                         break;
                     case "2":
-                        await HandleRemoveItem();
+                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Xóa sản phẩm' sẽ được hiện thực sau.[/]");
+                        Console.ReadKey();
                         break;
                     case "3":
-                        
+                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Tiến hành Thanh toán' sẽ được hiện thực sau.[/]");
+                        Console.ReadKey();
                         break;
                     case "4":
-                        return; // Thoát về UserMenu
+                        return;
                 }
             }
         }
-
-        private async Task HandleUpdateQuantity()
-        {
-            var cartItemId = AnsiConsole.Ask<int>("Nhập [green]ID Giỏ hàng[/] của sản phẩm muốn cập nhật:");
-            var newQuantity = AnsiConsole.Ask<int>("Nhập [green]số lượng mới[/] (nhập 0 để xóa):");
-
-            await _cartService.UpdateCartItemQuantityAsync(cartItemId, newQuantity);
-            AnsiConsole.MarkupLine("\n[green]Số lượng sản phẩm đã được cập nhật thành công![/]");
-            Console.ReadKey();
-        }
-
-
-        private async Task HandleRemoveItem()
-        {
-            var cartItemId = AnsiConsole.Ask<int>("Nhập [green]ID Giỏ hàng[/] của sản phẩm muốn xóa:");
-            await _cartService.RemoveCartItemAsync(cartItemId);
-            AnsiConsole.MarkupLine("\n[green]Đã xóa sản phẩm khỏi giỏ hàng![/]");
-            Console.ReadKey();
-        }
-
 
         private async Task<Table> CreateCartTableAsync(List<CartItem> cartItems)
         {
             var table = new Table().Expand().Border(TableBorder.HeavyHead);
             table.Title = new TableTitle("CÁC SẢN PHẨM TRONG GIỎ");
 
-            table.AddColumn(new TableColumn("[yellow]ID[/]").Centered());
+            table.AddColumn(new TableColumn("[yellow]ID Giỏ hàng[/]").Centered());
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Size[/]").Centered());
-            table.AddColumn(new TableColumn("[yellow]SL[/]").Centered());
+            table.AddColumn(new TableColumn("[yellow]Số lượng[/]").Centered());
             table.AddColumn(new TableColumn("[yellow]Đơn giá[/]") { Alignment = Justify.Right });
             table.AddColumn(new TableColumn("[yellow]Thành tiền[/]") { Alignment = Justify.Right });
 
@@ -113,7 +97,6 @@ namespace Project1_VTCA.UI
                 var subTotal = unitPrice * item.Quantity;
                 totalAmount += subTotal;
 
-                // --- SỬA LỖI Ở ĐÂY: Bọc tất cả các giá trị trong new Markup() ---
                 table.AddRow(
                     new Markup(item.CartItemID.ToString()),
                     new Markup(Markup.Escape(item.Product.Name)),
@@ -124,12 +107,13 @@ namespace Project1_VTCA.UI
                 );
             }
 
+            table.AddEmptyRow();
             table.AddRow(
                 new Markup(""),
                 new Markup(""),
                 new Markup(""),
                 new Markup(""),
-                new Markup("[bold yellow]Tổng tiền tạm tính:[/]"),
+                new Markup("[bold yellow]Tổng giá đơn hàng:[/]"),
                 new Markup($"[bold yellow]{totalAmount:N0} VNĐ[/]")
             );
 

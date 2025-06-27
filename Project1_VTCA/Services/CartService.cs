@@ -28,8 +28,6 @@ namespace Project1_VTCA.Services
                 return "[red]Lỗi: Size này không tồn tại cho sản phẩm.[/]";
             }
 
-            // --- SỬA LỖI Ở ĐÂY: Xử lý giá trị null một cách an toàn ---
-            // Sử dụng toán tử ?? để coi giá trị null là 0
             int stock = productSize.QuantityInStock ?? 0;
 
             if (stock < quantity)
@@ -42,7 +40,6 @@ namespace Project1_VTCA.Services
 
             if (existingCartItem != null)
             {
-                // Sử dụng biến 'stock' đã được xử lý an toàn
                 if (existingCartItem.Quantity + quantity > stock)
                 {
                     return $"[red]Lỗi: Tổng số lượng trong giỏ ({existingCartItem.Quantity}) và số lượng thêm vào ({quantity}) vượt quá tồn kho ({stock}).[/]";
