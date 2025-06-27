@@ -54,10 +54,43 @@ class Program
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nĐÃ CÓ LỖI XẢY RA: {ex.Message}");
-                Console.ResetColor();
-                Console.WriteLine("Nhấn phím bất kỳ để thoát.");
+                AnsiConsole.Clear();
+                AnsiConsole.Write(new Rule("[bold red]ĐÃ CÓ LỖI NGHIÊM TRỌNG XẢY RA[/]").Centered());
+                AnsiConsole.WriteLine();
+
+                int exceptionCount = 1;
+                Exception currentEx = ex;
+
+                // Sử dụng vòng lặp để "bóc" tất cả các InnerException
+                while (currentEx != null)
+                {
+                    var panel = new Panel(
+                        new Rows(
+                            new Markup($"[bold yellow]Loại lỗi:[/] [white]{Markup.Escape(currentEx.GetType().FullName)}[/]"),
+                            new Markup($"[bold yellow]Thông báo:[/] [white]{Markup.Escape(currentEx.Message)}[/]")
+                        ))
+                        .Header(exceptionCount == 1 ? "Lỗi chính" : $"Lỗi nội tại (Inner Exception) #{exceptionCount - 1}")
+                        .Border(BoxBorder.Rounded)
+                        .Expand();
+
+                    AnsiConsole.Write(panel);
+
+                    // In Stack Trace một cách rõ ràng
+                    AnsiConsole.MarkupLine("\n[bold underline yellow]Dấu vết ngăn xếp (Stack Trace):[/]");
+                    AnsiConsole.MarkupLine($"[grey]{Markup.Escape(currentEx.StackTrace ?? "Không có stack trace.")}[/]");
+                    AnsiConsole.WriteLine();
+
+                    currentEx = currentEx.InnerException;
+                    exceptionCount++;
+
+                    if (currentEx != null)
+                    {
+                        AnsiConsole.Write(new Rule("[red]Nguyên nhân gốc rễ (xem lỗi bên dưới)[/]").Centered());
+                    }
+                }
+
+                AnsiConsole.Write(new Rule("[bold red]CHƯƠNG TRÌNH SẼ DỪNG LẠI[/]").Centered());
+                AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để thoát.[/]");
                 Console.ReadKey();
             }
         }

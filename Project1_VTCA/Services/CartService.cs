@@ -10,6 +10,7 @@ namespace Project1_VTCA.Services
 {
     public class CartService : ICartService
     {
+        private const int MaxQuantityPerSize = 5;
         private readonly SneakerShopDbContext _context;
 
         public CartService(SneakerShopDbContext context)
@@ -17,7 +18,55 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
-        public async Task<string> AddToCartAsync(int userId, int productId, int size, int quantity)
+        // ... (Các phương thức khác như AddToCartAsync, UpdateCartItemQuantityAsync cũng được sửa tương tự) ...
+
+        public async Task<ServiceResponse> UpdateCartItemSizeAsync(int userId, int cartItemId, int newSize)
+        {
+            var sourceItem = await _context.CartItems
+                .Include(ci => ci.Product)
+                .FirstOrDefaultAsync(ci => ci.CartItemID == cartItemId && ci.UserID == userId);
+
+            if (sourceItem == null)
+                return new ServiceResponse(false, "Lỗi: Không tìm thấy sản phẩm trong giỏ hàng.");
+
+            var newProductSize = await _context.ProductSizes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ps => ps.ProductID == sourceItem.ProductID && ps.Size == newSize);
+
+            if (newProductSize == null || (newProductSize.QuantityInStock ?? 0) < sourceItem.Quantity)
+            {
+                return new ServiceResponse(false, $"Lỗi: Size mới không có sẵn hoặc không đủ hàng (Tồn kho: {newProductSize?.QuantityInStock ?? 0}).");
+            }
+
+            var destinationItem = await _context.CartItems
+                .FirstOrDefaultAsync(ci => ci.UserID == userId && ci.ProductID == sourceItem.ProductID && ci.Size == newSize && ci.CartItemID != cartItemId);
+
+            if (destinationItem != null) // Xung đột -> Gộp
+            {
+                int mergedQuantity = sourceItem.Quantity + destinationItem.Quantity;
+                if (mergedQuantity > MaxQuantityPerSize)
+                {
+                    return new ServiceResponse(false, $"Lỗi: Không thể gộp. Tổng số lượng sau khi gộp ({mergedQuantity}) sẽ vượt quá giới hạn {MaxQuantityPerSize} cho phép.");
+                }
+                if (mergedQuantity > (newProductSize.QuantityInStock ?? 0))
+                {
+                    return new ServiceResponse(false, $"Lỗi: Không thể gộp. Tổng số lượng sau khi gộp ({mergedQuantity}) sẽ vượt quá tồn kho (còn {newProductSize.QuantityInStock ?? 0}).");
+                }
+                destinationItem.Quantity = mergedQuantity;
+                _context.CartItems.Remove(sourceItem);
+            }
+            else // Không xung đột -> Chỉ cập nhật
+            {
+                sourceItem.Size = newSize;
+            }
+
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Cập nhật size thành công!");
+        }
+
+        // ... (Các phương thức còn lại của CartService.cs)
+        #region Other CartService Methods
+        public async Task<ServiceResponse> AddToCartAsync(int userId, int productId, int size, int quantity)
         {
             var productSize = await _context.ProductSizes
                 .AsNoTracking()
@@ -25,14 +74,14 @@ namespace Project1_VTCA.Services
 
             if (productSize == null)
             {
-                return "[red]Lỗi: Size này không tồn tại cho sản phẩm.[/]";
+                return new ServiceResponse(false, "Lỗi: Size này không tồn tại cho sản phẩm.");
             }
 
             int stock = productSize.QuantityInStock ?? 0;
 
-            if (stock < quantity)
+            if (quantity > stock)
             {
-                return $"[red]Lỗi: Không đủ số lượng tồn kho cho size {size}. Chỉ còn lại {stock}.[/]";
+                return new ServiceResponse(false, $"Lỗi: Số lượng tồn kho không đủ. Chỉ còn lại {stock}.");
             }
 
             var existingCartItem = await _context.CartItems
@@ -40,14 +89,24 @@ namespace Project1_VTCA.Services
 
             if (existingCartItem != null)
             {
-                if (existingCartItem.Quantity + quantity > stock)
+                int newTotalQuantity = existingCartItem.Quantity + quantity;
+                if (newTotalQuantity > MaxQuantityPerSize)
                 {
-                    return $"[red]Lỗi: Tổng số lượng trong giỏ ({existingCartItem.Quantity}) và số lượng thêm vào ({quantity}) vượt quá tồn kho ({stock}).[/]";
+                    int canAdd = MaxQuantityPerSize - existingCartItem.Quantity;
+                    return new ServiceResponse(false, $"Lỗi: Mỗi size sản phẩm chỉ có thể thêm tối đa {MaxQuantityPerSize} chiếc vào giỏ. Bạn đã có {existingCartItem.Quantity} chiếc trong giỏ và chỉ có thể thêm tối đa {canAdd} chiếc nữa.");
                 }
-                existingCartItem.Quantity += quantity;
+                if (newTotalQuantity > stock)
+                {
+                    return new ServiceResponse(false, $"Lỗi: Tổng số lượng trong giỏ và số lượng thêm vào vượt quá tồn kho (còn {stock}).");
+                }
+                existingCartItem.Quantity = newTotalQuantity;
             }
             else
             {
+                if (quantity > MaxQuantityPerSize)
+                {
+                    return new ServiceResponse(false, $"Lỗi: Mỗi size sản phẩm chỉ có thể thêm tối đa {MaxQuantityPerSize} chiếc vào giỏ.");
+                }
                 var newCartItem = new CartItem
                 {
                     UserID = userId,
@@ -59,7 +118,7 @@ namespace Project1_VTCA.Services
             }
 
             await _context.SaveChangesAsync();
-            return "[bold green]Đã thêm sản phẩm vào giỏ hàng thành công![/]";
+            return new ServiceResponse(true, "Đã thêm/cập nhật sản phẩm trong giỏ hàng thành công!");
         }
 
         public async Task<List<CartItem>> GetCartItemsAsync(int userId)
@@ -67,47 +126,39 @@ namespace Project1_VTCA.Services
             return await _context.CartItems
                 .Where(ci => ci.UserID == userId)
                 .Include(ci => ci.Product)
-                .ThenInclude(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
+                .ThenInclude(p => p.ProductSizes)
                 .OrderBy(ci => ci.CartItemID)
                 .ToListAsync();
         }
 
-        public async Task UpdateCartItemQuantityAsync(int cartItemId, int newQuantity)
+        public async Task<ServiceResponse> UpdateCartItemQuantityAsync(int cartItemId, int newQuantity)
         {
             var cartItem = await _context.CartItems
                 .Include(ci => ci.Product)
                 .ThenInclude(p => p.ProductSizes)
                 .FirstOrDefaultAsync(ci => ci.CartItemID == cartItemId);
 
-            if (cartItem == null) throw new InvalidOperationException("Cart item not found.");
+            if (cartItem == null) return new ServiceResponse(false, "Lỗi: Không tìm thấy sản phẩm trong giỏ hàng.");
+            if (newQuantity <= 0) return new ServiceResponse(false, "Lỗi: Số lượng mới phải lớn hơn 0.");
+            if (newQuantity > MaxQuantityPerSize) return new ServiceResponse(false, $"Lỗi: Số lượng mới không được vượt quá {MaxQuantityPerSize}.");
 
-            if (newQuantity <= 0)
-            {
-                _context.CartItems.Remove(cartItem);
-                await _context.SaveChangesAsync();
-                return;
-            }
-
-            var productSize = cartItem.Product.ProductSizes.FirstOrDefault(ps => ps.Size == cartItem.Size);
-            int stock = productSize?.QuantityInStock ?? 0;
-
-            if (newQuantity > stock)
-            {
-                throw new InvalidOperationException($"Stock for size {cartItem.Size} is only {stock}. Cannot update.");
-            }
+            var stock = cartItem.Product.ProductSizes.FirstOrDefault(ps => ps.Size == cartItem.Size)?.QuantityInStock ?? 0;
+            if (newQuantity > stock) return new ServiceResponse(false, $"Lỗi: Số lượng tồn kho không đủ (chỉ còn {stock}).");
 
             cartItem.Quantity = newQuantity;
             await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Cập nhật số lượng thành công!");
         }
 
-
-        public async Task RemoveCartItemAsync(int cartItemId)
+        public async Task RemoveCartItemsAsync(int userId, List<int> cartItemIds)
         {
-            var cartItem = await _context.CartItems.FindAsync(cartItemId);
-            if (cartItem != null)
+            var itemsToRemove = await _context.CartItems
+                .Where(ci => ci.UserID == userId && cartItemIds.Contains(ci.CartItemID))
+                .ToListAsync();
+
+            if (itemsToRemove.Any())
             {
-                _context.CartItems.Remove(cartItem);
+                _context.CartItems.RemoveRange(itemsToRemove);
                 await _context.SaveChangesAsync();
             }
         }
@@ -121,5 +172,6 @@ namespace Project1_VTCA.Services
                 await _context.SaveChangesAsync();
             }
         }
+        #endregion
     }
 }

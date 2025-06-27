@@ -6,10 +6,11 @@ namespace Project1_VTCA.Services.Interface
 {
     public interface ICartService
     {
-        Task<string> AddToCartAsync(int userId, int productId, int size, int quantity);
+        Task<ServiceResponse> AddToCartAsync(int userId, int productId, int size, int quantity);
         Task<List<CartItem>> GetCartItemsAsync(int userId);
-        Task UpdateCartItemQuantityAsync(int cartItemId, int newQuantity);
-        Task RemoveCartItemAsync(int cartItemId);
+        Task<ServiceResponse> UpdateCartItemQuantityAsync(int cartItemId, int newQuantity);
+        Task<ServiceResponse> UpdateCartItemSizeAsync(int userId, int cartItemId, int newSize);
+        Task RemoveCartItemsAsync(int userId, List<int> cartItemIds);
         Task ClearCartAsync(int userId);
     }
 }
