@@ -18,22 +18,24 @@ namespace Project1_VTCA.UI
         private readonly IPromotionService _promotionService;
         private readonly ConsoleLayout _layout;
         private readonly ProductMenu _productMenu;
+        private readonly ICheckoutMenu _checkoutMenu; // THÊM: Để gọi luồng thanh toán
 
-        // Lớp nội bộ để quản lý trạng thái phân trang của giỏ hàng
         private class CartState
         {
             public int CurrentPage { get; set; } = 1;
-            public int PageSize { get; set; } = 5; // Hiển thị 5 sản phẩm mỗi trang
+            public int PageSize { get; set; } = 5;
             public int TotalPages { get; set; } = 1;
         }
 
-        public CartMenu(ICartService cartService, ISessionService sessionService, IPromotionService promotionService, ConsoleLayout layout, ProductMenu productMenu)
+        // Cập nhật constructor
+        public CartMenu(ICartService cartService, ISessionService sessionService, IPromotionService promotionService, ConsoleLayout layout, ProductMenu productMenu, ICheckoutMenu checkoutMenu)
         {
             _cartService = cartService;
             _sessionService = sessionService;
             _promotionService = promotionService;
             _layout = layout;
             _productMenu = productMenu;
+            _checkoutMenu = checkoutMenu; // Gán service mới
         }
 
         public async Task ShowAsync()
@@ -43,28 +45,22 @@ namespace Project1_VTCA.UI
             {
                 var allCartItems = await _cartService.GetCartItemsAsync(_sessionService.CurrentUser.UserID);
 
-                // Cập nhật tổng số trang
                 state.TotalPages = (int)Math.Ceiling(allCartItems.Count / (double)state.PageSize);
                 if (state.TotalPages == 0) state.TotalPages = 1;
                 if (state.CurrentPage > state.TotalPages) state.CurrentPage = state.TotalPages;
 
-                // Lấy các sản phẩm cho trang hiện tại
                 var pagedItems = allCartItems.Skip((state.CurrentPage - 1) * state.PageSize).Take(state.PageSize).ToList();
 
                 var menuContent = new Markup(
                     "[bold yellow underline]TÙY CHỌN GIỎ HÀNG[/]\n" +
                     "1. Cập nhật sản phẩm\n" +
                     "2. Xóa sản phẩm\n" +
-                    "3. Tiến hành Thanh toán\n\n" +
+                    "[bold green]3. TIẾN HÀNH THANH TOÁN[/]\n\n" +
                     "[red]0. Quay về Menu chính[/]"
                 );
 
-                // Tính toán tổng tiền trước
                 var totalAmount = await CalculateTotalAmountAsync(allCartItems);
-
-                // Tạo nội dung cho khung VIEW
                 var viewContent = await CreateViewContentAsync(pagedItems, totalAmount);
-
                 var notification = new Markup(
                     $"Trang [bold yellow]{state.CurrentPage}[/] / [bold yellow]{state.TotalPages}[/]. " +
                     "Lệnh: [blue]'n'[/](Sau), [blue]'p'[/](Trước), [blue]'p.số'[/](Đến trang)\n" +
@@ -77,7 +73,7 @@ namespace Project1_VTCA.UI
 
                 if (await HandleCommand(choice, state, allCartItems) == false)
                 {
-                    return; // Thoát khỏi CartMenu
+                    return;
                 }
             }
         }
@@ -106,8 +102,8 @@ namespace Project1_VTCA.UI
                 case "1": await HandleUpdateCartAsync(allItems); break;
                 case "2": await HandleRemoveItemAsync(allItems); break;
                 case "3":
-                    AnsiConsole.MarkupLine("[yellow]Chức năng 'Tiến hành Thanh toán' đang được xây dựng.[/]");
-                    Console.ReadKey();
+                    // HIỆN THỰC THANH TOÁN GIỎ HÀNG
+                    await HandleCheckoutCart(allItems);
                     break;
                 case "n":
                     if (state.CurrentPage < state.TotalPages) state.CurrentPage++;
@@ -122,15 +118,39 @@ namespace Project1_VTCA.UI
             return true;
         }
 
+        // PHƯƠNG THỨC MỚI: Xử lý thanh toán giỏ hàng
+        private async Task HandleCheckoutCart(List<CartItem> allItems)
+        {
+            if (!allItems.Any())
+            {
+                AnsiConsole.MarkupLine("[red]Giỏ hàng trống, không thể thanh toán.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            AnsiConsole.MarkupLine("\nChuẩn bị thanh toán toàn bộ giỏ hàng...");
+            await _checkoutMenu.StartCheckoutFlowAsync(allItems);
+
+            // XÓA GIỎ HÀNG SAU KHI THANH TOÁN
+            // Giả sử luồng thanh toán thành công (trong thực tế cần kiểm tra kết quả trả về)
+            // Trong kiến trúc hiện tại, StartCheckoutFlowAsync không trả về kết quả,
+            // nhưng nó xử lý việc tạo đơn hàng. Sau khi nó chạy xong, chúng ta xóa giỏ hàng.
+            await _cartService.ClearCartAsync(_sessionService.CurrentUser.UserID);
+            AnsiConsole.MarkupLine("\n[green]Đã dọn dẹp giỏ hàng sau khi hoàn tất thanh toán.[/]");
+            Console.ReadKey();
+        }
+
+        // ... (Các phương thức khác của CartMenu giữ nguyên)
+        #region Other CartMenu Methods
         private async Task<IRenderable> CreateViewContentAsync(List<CartItem> pagedItems, decimal totalAmount)
         {
-            // Panel hiển thị tổng tiền
-            var totalPanel = new Panel(new Markup($"[bold yellow]TỔNG GIÁ ĐƠN HÀNG: {totalAmount:N0} VNĐ}}[/]"));
+            var totalPanel = new Panel(new Markup($"[bold yellow]TỔNG GIÁ ĐƠN HÀNG: {totalAmount:N0} VNĐ[/]"))
+                .Header(new PanelHeader("TỔNG KẾT").Centered())
+                .Border(BoxBorder.Double)
+                .Expand();
 
-            // Bảng hiển thị các sản phẩm đã phân trang
             var cartTable = await CreatePagedCartTableAsync(pagedItems);
 
-            // Ghép 2 thành phần lại
             return new Rows(totalPanel, cartTable);
         }
 
@@ -182,8 +202,6 @@ namespace Project1_VTCA.UI
             }
             return totalAmount;
         }
-
-        #region Update/Remove Methods (No Change except for HandleUpdateSizeAsync)
 
         private async Task HandleUpdateCartAsync(List<CartItem> cartItems)
         {

@@ -12,7 +12,7 @@ namespace Project1_VTCA.Data
         public int OrderID { get; set; }
 
         [Required]
-        [StringLength(20)]
+        [StringLength(30)]
         public string OrderCode { get; set; }
 
         public int UserID { get; set; }

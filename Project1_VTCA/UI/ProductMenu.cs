@@ -2,6 +2,7 @@
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Draw;
+using Project1_VTCA.UI.Interface;
 using Project1_VTCA.Utils;
 using Spectre.Console;
 using System;
@@ -18,14 +19,16 @@ namespace Project1_VTCA.UI
         private readonly IPromotionService _promotionService;
         private readonly ISessionService _sessionService;
         private readonly ICartService _cartService;
+        private readonly ICheckoutMenu _checkoutMenu;
         private readonly ConsoleLayout _layout;
 
-        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ICartService cartService, ConsoleLayout layout)
+        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ICartService cartService, ConsoleLayout layout, ICheckoutMenu checkoutMenu)
         {
             _productService = productService;
             _promotionService = promotionService;
             _sessionService = sessionService;
             _cartService = cartService;
+            _checkoutMenu = checkoutMenu;
             _layout = layout;
         }
 
@@ -46,7 +49,7 @@ namespace Project1_VTCA.UI
 
                 var actionMenu = new Markup(
                     "[bold yellow underline]HÀNH ĐỘNG[/]\n" +
-                    "1. Mua ngay (sắp có)\n" +
+                    "1. Mua ngay \n" +
                     "2. Thêm vào giỏ hàng\n\n" +
                     "[red]3. Quay lại[/]"
                 );
@@ -82,8 +85,7 @@ namespace Project1_VTCA.UI
                 switch (choice)
                 {
                     case "1":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Mua ngay' sẽ được hiện thực sau.[/]");
-                        Console.ReadKey();
+                        await HandleBuyNowAsync(product);
                         break;
                     case "2":
                         await HandleAddToCartFlowAsync(product);
@@ -94,7 +96,48 @@ namespace Project1_VTCA.UI
             }
         }
 
-        // ... (Các phương thức khác của ProductMenu giữ nguyên) ...
+        private async Task HandleBuyNowAsync(Product product)
+        {
+            if (!_sessionService.IsLoggedIn)
+            {
+                AnsiConsole.MarkupLine("\n[red]Bạn cần đăng nhập để thực hiện chức năng này.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var availableSizes = product.ProductSizes?.Where(s => (s.QuantityInStock ?? 0) > 0).ToList();
+            if (availableSizes == null || !availableSizes.Any())
+            {
+                AnsiConsole.MarkupLine("\n[red]Sản phẩm này hiện đã hết hàng.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var selectedSize = AnsiConsole.Prompt(
+                new SelectionPrompt<ProductSize>()
+                    .Title($"Chọn [green]size[/] để mua ngay:")
+                    .UseConverter(ps => $"{ps.Size} (Tồn kho: {ps.QuantityInStock})")
+                    .AddChoices(availableSizes));
+
+            var quantity = AnsiConsole.Prompt(
+                new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
+                    .Validate(q =>
+                    {
+                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
+                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
+                        if (q > (selectedSize.QuantityInStock ?? 0)) return ValidationResult.Error("[red]Số lượng vượt quá tồn kho.[/]");
+                        return ValidationResult.Success();
+                    }));
+
+            var itemToCheckout = new List<CartItem>
+        {
+            // Cần gán cả Product để các bước sau có thể tính khuyến mãi
+            new CartItem { Product = product, ProductID = product.ProductID, Size = selectedSize.Size, Quantity = quantity, UserID = _sessionService.CurrentUser.UserID }
+        };
+
+            await _checkoutMenu.StartCheckoutFlowAsync(itemToCheckout);
+        }
+
         #region Other ProductMenu Methods
         private class ProductDisplayState
         {
