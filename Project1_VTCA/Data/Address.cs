@@ -24,7 +24,7 @@ namespace Project1_VTCA.Data
 
         public bool IsDefault { get; set; }
 
-        [ForeignKey("UserID")]
-        public virtual User User { get; set; }
+        
+        public bool IsActive { get; set; } = true; 
     }
 }

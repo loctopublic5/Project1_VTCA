@@ -2,7 +2,6 @@
 using Project1_VTCA.UI.Draw;
 using Project1_VTCA.UI.Interface;
 using Spectre.Console;
-using System;
 using System.Threading.Tasks;
 
 namespace Project1_VTCA.UI
@@ -12,14 +11,15 @@ namespace Project1_VTCA.UI
         private readonly ProductMenu _productMenu;
         private readonly ICartMenu _cartMenu;
         private readonly ISessionService _sessionService;
-      
+        private readonly IAccountManagementMenu _accountMenu; // THÊM: Inject menu con
 
-        public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu)
+        // Cập nhật constructor để nhận IAccountManagementMenu
+        public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu, IAccountManagementMenu accountMenu)
         {
             _productMenu = productMenu;
             _cartMenu = cartMenu;
             _sessionService = sessionService;
-           
+            _accountMenu = accountMenu; // Gán đối tượng menu con
         }
 
         public async Task Show()
@@ -38,9 +38,8 @@ namespace Project1_VTCA.UI
                         .AddChoices(new[]
                         {
                             "Duyệt sản phẩm (Tất cả sản phẩm)",
-                            "Xem sản phẩm nổi bật",
                             "Xem giỏ hàng",
-                            "Quản lý tài khoản (Địa chỉ, Lịch sử mua hàng...)",
+                            "Quản lý tài khoản", // Đổi tên cho gọn gàng
                             "[red]Đăng xuất[/]"
                         }));
 
@@ -49,23 +48,17 @@ namespace Project1_VTCA.UI
                     case "Duyệt sản phẩm (Tất cả sản phẩm)":
                         await _productMenu.ShowAllProductsAsync();
                         break;
-                    case "Xem sản phẩm nổi bật":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Sản phẩm nổi bật' đang được xây dựng.[/]");
-                        Console.ReadKey();
-                        break;
                     case "Xem giỏ hàng":
                         await _cartMenu.ShowAsync();
                         break;
-
-                    case "Quản lý tài khoản (Địa chỉ, Lịch sử mua hàng...)":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Quản lý tài khoản' đang được xây dựng.[/]");
-                        Console.ReadKey();
+                    case "Quản lý tài khoản":
+                        await _accountMenu.ShowAsync(); // GỌI MENU CON
                         break;
                     case "[red]Đăng xuất[/]":
                         _sessionService.LogoutUser();
                         AnsiConsole.MarkupLine("[green]Bạn đã đăng xuất thành công.[/]");
                         Console.ReadKey();
-                        return; // Quay về Guest Menu
+                        return;
                 }
             }
         }

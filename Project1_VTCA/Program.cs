@@ -33,6 +33,8 @@ class Program
         builder.Services.AddScoped<IPromotionService, PromotionService>();
         builder.Services.AddScoped<ICartService, CartService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
+        builder.Services.AddScoped<IUserService, UserService>(); 
+        builder.Services.AddScoped<IAddressService, AddressService>();
 
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
@@ -41,6 +43,9 @@ class Program
         builder.Services.AddTransient<IAdminMenu, AdminMenu>();
         builder.Services.AddTransient<ICartMenu, CartMenu>();
         builder.Services.AddTransient<ICheckoutMenu, CheckoutMenu>();
+        builder.Services.AddTransient<IAddressMenu, AddressMenu>();    
+        builder.Services.AddTransient<IWalletMenu, WalletMenu>();
+        builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
 
         using var host = builder.Build();
 
