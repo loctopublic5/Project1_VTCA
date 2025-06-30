@@ -17,8 +17,8 @@ namespace Project1_VTCA.Data
 
         public int UserID { get; set; }
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-        public DateTime OrderDate { get; set; } = DateTime.Now;
+        // CẬP NHẬT: Loại bỏ DataAnnotation, để C# toàn quyền kiểm soát.
+        public DateTime OrderDate { get; set; }
 
         [Required]
         [StringLength(50)]
@@ -35,27 +35,24 @@ namespace Project1_VTCA.Data
         [StringLength(10)]
         public string ShippingPhone { get; set; }
 
-        // --- CÁC CỘT ĐƯỢC KHÔI PHỤC LẠI ---
         [StringLength(50)]
-        public string PaymentMethod { get; set; } // Ví dụ: "COD", "Online"
+        public string? PaymentMethod { get; set; }
 
         public int? ApprovedByAdminID { get; set; }
 
         [StringLength(200)]
-        public string AdminDecisionReason { get; set; } // Lý do admin hủy đơn
+        public string? AdminDecisionReason { get; set; }
 
         [StringLength(200)]
-        public string CustomerCancellationReason { get; set; } // Lý do khách hàng hủy đơn
+        public string? CustomerCancellationReason { get; set; }
 
         public bool RefundRequested { get; set; } = false;
-        // ------------------------------------
 
-        // Khóa ngoại
         [ForeignKey("UserID")]
         public virtual User User { get; set; }
 
         [ForeignKey("ApprovedByAdminID")]
-        public virtual User ApprovedByAdmin { get; set; }
+        public virtual User? ApprovedByAdmin { get; set; }
 
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }

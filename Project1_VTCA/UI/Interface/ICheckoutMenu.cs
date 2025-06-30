@@ -6,6 +6,7 @@ namespace Project1_VTCA.UI.Interface
 {
     public interface ICheckoutMenu
     {
-        Task StartCheckoutFlowAsync(List<CartItem> itemsToCheckout);
+        
+        Task<bool> StartCheckoutFlowAsync(List<CartItem> itemsToCheckout);
     }
 }

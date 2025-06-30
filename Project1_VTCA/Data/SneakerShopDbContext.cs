@@ -28,7 +28,7 @@ namespace Project1_VTCA.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Cấu hình cũ
+            
             modelBuilder.Entity<ProductCategory>().HasKey(pc => new { pc.ProductID, pc.CategoryID });
             modelBuilder.Entity<ProductSize>().HasKey(ps => new { ps.ProductID, ps.Size });
 
@@ -36,7 +36,7 @@ namespace Project1_VTCA.Data
                 .Property(p => p.TotalQuantity)
                 .HasDefaultValue(0);
 
-            // Cấu hình mối quan hệ của User
+            
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Orders)
                 .WithOne(o => o.User)
@@ -49,7 +49,7 @@ namespace Project1_VTCA.Data
                 .HasForeignKey(o => o.ApprovedByAdminID)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Cấu hình mới
+           
             modelBuilder.Entity<Order>()
                 .HasIndex(o => o.OrderCode)
                 .IsUnique();

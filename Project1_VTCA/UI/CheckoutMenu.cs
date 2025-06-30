@@ -13,21 +13,24 @@ namespace Project1_VTCA.UI
         private readonly IOrderService _orderService;
         private readonly IPromotionService _promotionService;
         private readonly ISessionService _sessionService;
+        private readonly IAddressService _addressService;
 
-        public CheckoutMenu(IOrderService orderService, IPromotionService promotionService, ISessionService sessionService)
+        public CheckoutMenu(IOrderService orderService, IPromotionService promotionService, ISessionService sessionService, IAddressService addressService)
         {
             _orderService = orderService;
             _promotionService = promotionService;
             _sessionService = sessionService;
+            _addressService = addressService;
         }
 
-        public async Task StartCheckoutFlowAsync(List<CartItem> itemsToCheckout)
+        // CẬP NHẬT: Trả về Task<bool>
+        public async Task<bool> StartCheckoutFlowAsync(List<CartItem> itemsToCheckout)
         {
             if (!itemsToCheckout.Any())
             {
                 AnsiConsole.MarkupLine("[red]Không có sản phẩm nào để thanh toán.[/]");
                 Console.ReadKey();
-                return;
+                return false;
             }
 
             AnsiConsole.Clear();
@@ -36,40 +39,86 @@ namespace Project1_VTCA.UI
             var shippingFee = _orderService.CalculateShippingFee(totalQuantity);
             var totalPrice = subTotal + shippingFee;
 
-            var summaryTable = await CreateSummaryTable(itemsToCheckout, subTotal, shippingFee, totalPrice);
-            AnsiConsole.Write(summaryTable);
+            AnsiConsole.Write(await CreateSummaryTable(itemsToCheckout, subTotal, shippingFee, totalPrice));
 
-            string shippingAddress = AnsiConsole.Ask<string>("\nNhập [green]địa chỉ nhận hàng[/] (hoặc '[red]exit[/]'):");
-            if (shippingAddress.Equals("exit", System.StringComparison.OrdinalIgnoreCase)) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return; }
+            // TÍCH HỢP: Chọn địa chỉ từ danh sách thật
+            var selectedAddress = await ChooseShippingAddress();
+            if (selectedAddress == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return false; }
 
             string paymentMethod = await ChoosePaymentMethod(totalPrice);
-            if (paymentMethod == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return; }
+            if (paymentMethod == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return false; }
 
 
-            var finalConfirmPanel = CreateFinalConfirmPanel(shippingAddress, paymentMethod, totalPrice);
+            var finalConfirmPanel = CreateFinalConfirmPanel(selectedAddress, paymentMethod, totalPrice);
             AnsiConsole.Write(finalConfirmPanel);
 
             if (!AnsiConsole.Confirm("\n[bold yellow]Xác nhận đặt hàng với các thông tin trên?[/]"))
             {
                 AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác đặt hàng.[/]");
                 Console.ReadKey();
-                return;
+                return false;
             }
 
-            var response = await _orderService.CreateOrderAsync(_sessionService.CurrentUser.UserID, itemsToCheckout, shippingAddress, paymentMethod);
+            // CHUẨN HÓA: Lời gọi phương thức giờ đây truyền đúng số lượng và đúng loại tham số.
+            var response = await _orderService.CreateOrderAsync(
+                _sessionService.CurrentUser.UserID,
+                itemsToCheckout,
+                $"{selectedAddress.AddressDetail}, {selectedAddress.City}", // shippingAddress
+                selectedAddress.ReceivePhone, // shippingPhone
+                paymentMethod
+            );
 
             if (response.IsSuccess)
             {
                 DisplaySuccessReceipt(response.Message, totalPrice);
+                Console.ReadKey();
+                return true;
             }
             else
             {
                 AnsiConsole.MarkupLine($"[red]Lỗi khi tạo đơn hàng: {Markup.Escape(response.Message)}[/]");
+                Console.ReadKey();
+                return false;
             }
-            Console.ReadKey();
         }
 
-        // NÂNG CẤP: Cho phép chọn lại phương thức thanh toán
+        // PHƯƠNG THỨC MỚI: Tích hợp AddressService
+        private async Task<Address> ChooseShippingAddress()
+        {
+            var addresses = await _addressService.GetActiveAddressesAsync(_sessionService.CurrentUser.UserID);
+            if (!addresses.Any())
+            {
+                AnsiConsole.MarkupLine("[red]Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong mục 'Quản lý tài khoản' trước.[/]");
+                return null;
+            }
+
+            var prompt = new SelectionPrompt<Address>()
+                .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
+                .PageSize(7)
+                .UseConverter(addr => {
+                    var displayText = $"{addr.AddressDetail}, {addr.City} - SĐT: {addr.ReceivePhone}";
+                    return addr.IsDefault ? $"[bold yellow](Mặc định)[/] {Markup.Escape(displayText)}" : Markup.Escape(displayText);
+                })
+                .AddChoices(addresses);
+
+            return AnsiConsole.Prompt(prompt);
+        }
+
+        // ... các phương thức khác giữ nguyên
+        #region Other CheckoutMenu Methods
+        private async Task<(decimal, int)> CalculateTotals(List<CartItem> items)
+        {
+            decimal subTotal = 0;
+            int totalQuantity = 0;
+            foreach (var item in items)
+            {
+                var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(item.Product);
+                subTotal += (discountedPrice ?? item.Product.Price) * item.Quantity;
+                totalQuantity += item.Quantity;
+            }
+            return (subTotal, totalQuantity);
+        }
+
         private async Task<string> ChoosePaymentMethod(decimal totalPrice)
         {
             while (true)
@@ -94,32 +143,17 @@ namespace Project1_VTCA.UI
                             .AddChoices(new[] { "Thử lại với phương thức khác", "Hủy bỏ thanh toán" })
                         );
                         if (choice == "Hủy bỏ thanh toán") return null;
-                        // Nếu chọn thử lại, vòng lặp while sẽ tiếp tục
                     }
                     else
                     {
-                        return paymentMethod; // Số dư đủ, trả về phương thức đã chọn
+                        return paymentMethod;
                     }
                 }
                 else
                 {
-                    return paymentMethod; // Người dùng chọn COD, trả về ngay
+                    return paymentMethod;
                 }
             }
-        }
-
-        #region Helper Methods (No Change)
-        private async Task<(decimal, int)> CalculateTotals(List<CartItem> items)
-        {
-            decimal subTotal = 0;
-            int totalQuantity = 0;
-            foreach (var item in items)
-            {
-                var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(item.Product);
-                subTotal += (discountedPrice ?? item.Product.Price) * item.Quantity;
-                totalQuantity += item.Quantity;
-            }
-            return (subTotal, totalQuantity);
         }
 
         private async Task<Table> CreateSummaryTable(List<CartItem> items, decimal subTotal, decimal shippingFee, decimal totalPrice)
@@ -151,11 +185,13 @@ namespace Project1_VTCA.UI
             return table;
         }
 
-        private Panel CreateFinalConfirmPanel(string address, string payment, decimal total)
+        private Panel CreateFinalConfirmPanel(Address address, string payment, decimal total)
         {
+            var fullAddress = $"{address.AddressDetail}, {address.City}";
             return new Panel(
                 new Rows(
-                    new Markup($"[bold]Địa chỉ nhận hàng:[/] {Markup.Escape(address)}"),
+                    new Markup($"[bold]Địa chỉ nhận hàng:[/] {Markup.Escape(fullAddress)}"),
+                    new Markup($"[bold]SĐT người nhận:[/] {Markup.Escape(address.ReceivePhone)}"),
                     new Markup($"[bold]Phương thức thanh toán:[/] {payment}"),
                     new Markup($"[bold]Tổng thanh toán:[/] [yellow]{total:N0} VNĐ[/]")
                 ))

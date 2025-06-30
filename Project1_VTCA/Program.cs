@@ -25,8 +25,8 @@ class Program
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
         builder.Services.AddDbContext<SneakerShopDbContext>(options =>
-            options.UseSqlServer(connectionString, sqlOpt => sqlOpt.EnableRetryOnFailure()));
 
+           options.UseSqlServer(connectionString, sqlOpt => sqlOpt.EnableRetryOnFailure()));
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();

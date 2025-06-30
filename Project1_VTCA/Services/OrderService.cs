@@ -27,22 +27,22 @@ namespace Project1_VTCA.Services
             return 70000;
         }
 
-        public async Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string paymentMethod)
+        public async Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod)
         {
             if (!items.Any())
             {
                 return new ServiceResponse(false, "Không có sản phẩm nào để tạo đơn hàng.");
             }
 
-            // SỬA LỖI: Áp dụng Execution Strategy để quản lý transaction và retry
             var strategy = _context.Database.CreateExecutionStrategy();
 
             return await strategy.ExecuteAsync(async () =>
             {
-                // Toàn bộ logic được bọc trong transaction bên trong strategy
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    var now = DateTime.Now;
+
                     decimal subTotal = 0;
                     int totalQuantity = 0;
 
@@ -62,24 +62,24 @@ namespace Project1_VTCA.Services
                     var user = await _context.Users.FindAsync(userId);
                     if (paymentMethod == "Thanh toán ngay (trừ vào số dư)" && user.Balance < totalPrice)
                     {
-                        // Không cần rollback ở đây vì ExecuteAsync sẽ xử lý
                         return new ServiceResponse(false, "Số dư không đủ để thực hiện giao dịch.");
                     }
 
                     if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         user.Balance -= totalPrice;
+                        user.TotalSpending += subTotal;
                     }
 
                     var order = new Order
                     {
                         UserID = userId,
-                        OrderCode = $"SNEAKER{DateTime.Now:yyyyMMddHHmmss}",
-                        OrderDate = DateTime.Now,
+                        OrderCode = $"SNEAKER{now:yyyyMMddHHmmssfff}",
+                        OrderDate = now,
                         Status = "PendingAdminApproval",
                         TotalPrice = totalPrice,
                         ShippingAddress = shippingAddress,
-                        ShippingPhone = user.PhoneNumber,
+                        ShippingPhone = shippingPhone,
                         PaymentMethod = paymentMethod
                     };
                     _context.Orders.Add(order);
@@ -87,26 +87,30 @@ namespace Project1_VTCA.Services
 
                     foreach (var item in items)
                     {
-                        var product = await _context.Products.FindAsync(item.ProductID);
-                        var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
-
                         var orderDetail = new OrderDetail
                         {
                             OrderID = order.OrderID,
                             ProductID = item.ProductID,
                             Size = item.Size,
                             Quantity = item.Quantity,
-                            UnitPrice = discountedPrice ?? product.Price
+                            UnitPrice = (await _promotionService.CalculateDiscountedPriceAsync(item.Product)).DiscountedPrice ?? item.Product.Price
                         };
                         _context.OrderDetails.Add(orderDetail);
 
                         var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == item.ProductID && ps.Size == item.Size);
                         if (productSize == null || (productSize.QuantityInStock ?? 0) < item.Quantity)
                         {
-                            // Ném exception để strategy bắt và rollback
-                            throw new InvalidOperationException($"Không đủ hàng cho sản phẩm {product.Name} - Size {item.Size}.");
+                            throw new InvalidOperationException($"Không đủ hàng cho sản phẩm {item.Product.Name} - Size {item.Size}.");
                         }
                         productSize.QuantityInStock -= item.Quantity;
+
+                        // --- LOGIC MỚI: CẬP NHẬT TỔNG SỐ LƯỢNG ---
+                        // Tìm đối tượng Product đang được DbContext theo dõi
+                        var productToUpdate = await _context.Products.FindAsync(item.ProductID);
+                        if (productToUpdate != null)
+                        {
+                            productToUpdate.TotalQuantity -= item.Quantity;
+                        }
                     }
 
                     await _context.SaveChangesAsync();
@@ -116,8 +120,7 @@ namespace Project1_VTCA.Services
                 }
                 catch (Exception ex)
                 {
-                    // transaction sẽ tự động được rollback khi using block kết thúc hoặc khi strategy retry
-                    return new ServiceResponse(false, $"Đã xảy ra lỗi không mong muốn khi tạo đơn hàng: {ex.Message}");
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi tạo đơn hàng: {ex.Message}");
                 }
             });
         }

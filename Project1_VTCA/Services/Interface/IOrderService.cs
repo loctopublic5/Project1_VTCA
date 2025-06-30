@@ -6,7 +6,9 @@ namespace Project1_VTCA.Services.Interface
 {
     public interface IOrderService
     {
-        Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string paymentMethod);
+        
+        Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod);
+
         decimal CalculateShippingFee(int totalQuantity);
     }
 }

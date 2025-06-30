@@ -128,16 +128,16 @@ namespace Project1_VTCA.UI
                 return;
             }
 
-            AnsiConsole.MarkupLine("\nChuẩn bị thanh toán toàn bộ giỏ hàng...");
-            await _checkoutMenu.StartCheckoutFlowAsync(allItems);
+            // Gọi luồng thanh toán và nhận kết quả
+            bool isSuccess = await _checkoutMenu.StartCheckoutFlowAsync(allItems);
 
-            // XÓA GIỎ HÀNG SAU KHI THANH TOÁN
-            // Giả sử luồng thanh toán thành công (trong thực tế cần kiểm tra kết quả trả về)
-            // Trong kiến trúc hiện tại, StartCheckoutFlowAsync không trả về kết quả,
-            // nhưng nó xử lý việc tạo đơn hàng. Sau khi nó chạy xong, chúng ta xóa giỏ hàng.
-            await _cartService.ClearCartAsync(_sessionService.CurrentUser.UserID);
-            AnsiConsole.MarkupLine("\n[green]Đã dọn dẹp giỏ hàng sau khi hoàn tất thanh toán.[/]");
-            Console.ReadKey();
+            // Chỉ xóa giỏ hàng nếu giao dịch thành công
+            if (isSuccess)
+            {
+                await _cartService.ClearCartAsync(_sessionService.CurrentUser.UserID);
+                AnsiConsole.MarkupLine("\n[green]Đã dọn dẹp giỏ hàng sau khi hoàn tất thanh toán.[/]");
+                Console.ReadKey();
+            }
         }
 
         // ... (Các phương thức khác của CartMenu giữ nguyên)

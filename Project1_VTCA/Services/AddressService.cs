@@ -16,6 +16,24 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
+        public async Task<ServiceResponse> SoftDeleteAddressAsync(int addressId, int userId)
+        {
+            var address = await _context.Addresses.FirstOrDefaultAsync(a => a.AddressID == addressId && a.UserID == userId);
+            if (address == null) return new ServiceResponse(false, "Không tìm thấy địa chỉ.");
+
+            // NÂNG CẤP: Không cho phép xóa địa chỉ đang là mặc định.
+            if (address.IsDefault)
+            {
+                return new ServiceResponse(false, "Lỗi: Không thể xóa địa chỉ mặc định. Vui lòng đặt một địa chỉ khác làm mặc định trước.");
+            }
+
+            address.IsActive = false;
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Xóa địa chỉ thành công.");
+        }
+
+        // ... các phương thức khác của AddressService không đổi
+        #region Other AddressService Methods
         public async Task<List<Address>> GetActiveAddressesAsync(int userId)
         {
             return await _context.Addresses
@@ -28,7 +46,7 @@ namespace Project1_VTCA.Services
         {
             var userAddresses = await GetActiveAddressesAsync(newAddress.UserID);
 
-            if (!userAddresses.Any())
+            if (!userAddresses.Any() && newAddress.IsActive)
             {
                 newAddress.IsDefault = true;
             }
@@ -53,38 +71,6 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Cập nhật địa chỉ thành công.");
         }
 
-        public async Task<ServiceResponse> SoftDeleteAddressAsync(int addressId, int userId)
-        {
-            var address = await _context.Addresses.FirstOrDefaultAsync(a => a.AddressID == addressId && a.UserID == userId);
-            if (address == null) return new ServiceResponse(false, "Không tìm thấy địa chỉ.");
-
-            if (address.IsDefault)
-            {
-                var activeAddressesCount = await _context.Addresses.CountAsync(a => a.UserID == userId && a.IsActive);
-                if (activeAddressesCount <= 1)
-                {
-                    return new ServiceResponse(false, "Không thể xóa địa chỉ mặc định và cũng là địa chỉ duy nhất của bạn.");
-                }
-            }
-
-            address.IsActive = false;
-
-            if (address.IsDefault)
-            {
-                address.IsDefault = false;
-                var newDefault = await _context.Addresses
-                                  .Where(a => a.UserID == userId && a.IsActive)
-                                  .FirstOrDefaultAsync();
-                if (newDefault != null)
-                {
-                    newDefault.IsDefault = true;
-                }
-            }
-
-            await _context.SaveChangesAsync();
-            return new ServiceResponse(true, "Xóa địa chỉ thành công.");
-        }
-
         public async Task<ServiceResponse> SetDefaultAddressAsync(int addressId, int userId)
         {
             var currentDefault = await _context.Addresses
@@ -105,5 +91,6 @@ namespace Project1_VTCA.Services
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, "Đặt địa chỉ mặc định thành công.");
         }
+        #endregion
     }
 }
