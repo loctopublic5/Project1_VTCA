@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
-using Project1_VTCA.DTOs;
 using Project1_VTCA.Services;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI;
@@ -24,18 +23,24 @@ class Program
         var builder = Host.CreateApplicationBuilder(args);
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        builder.Services.AddDbContext<SneakerShopDbContext>(options =>
 
-           options.UseSqlServer(connectionString, sqlOpt => sqlOpt.EnableRetryOnFailure()));
+        builder.Services.AddDbContext<SneakerShopDbContext>(options =>
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure();
+            }));
+
+        // ĐĂNG KÝ TOÀN BỘ CÁC SERVICES
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddScoped<IPromotionService, PromotionService>();
         builder.Services.AddScoped<ICartService, CartService>();
         builder.Services.AddScoped<IOrderService, OrderService>();
-        builder.Services.AddScoped<IUserService, UserService>(); 
+        builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IAddressService, AddressService>();
 
+        // ĐĂNG KÝ TOÀN BỘ CÁC MENUS
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
         builder.Services.AddTransient<ProductMenu>();
@@ -43,8 +48,9 @@ class Program
         builder.Services.AddTransient<IAdminMenu, AdminMenu>();
         builder.Services.AddTransient<ICartMenu, CartMenu>();
         builder.Services.AddTransient<ICheckoutMenu, CheckoutMenu>();
-        builder.Services.AddTransient<IAddressMenu, AddressMenu>();    
-        builder.Services.AddTransient<IWalletMenu, WalletMenu>();
+        builder.Services.AddTransient<IAddressMenu, AddressMenu>();
+        builder.Services.AddTransient<IMyWalletMenu, MyWalletMenu>(); 
+        builder.Services.AddTransient<IOrderHistoryMenu, OrderHistoryMenu>();
         builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
 
         using var host = builder.Build();
@@ -68,7 +74,6 @@ class Program
                 int exceptionCount = 1;
                 Exception currentEx = ex;
 
-                // Sử dụng vòng lặp để "bóc" tất cả các InnerException
                 while (currentEx != null)
                 {
                     var panel = new Panel(
@@ -76,13 +81,12 @@ class Program
                             new Markup($"[bold yellow]Loại lỗi:[/] [white]{Markup.Escape(currentEx.GetType().FullName)}[/]"),
                             new Markup($"[bold yellow]Thông báo:[/] [white]{Markup.Escape(currentEx.Message)}[/]")
                         ))
-                        .Header(exceptionCount == 1 ? "Lỗi chính" : $"Lỗi nội tại (Inner Exception) #{exceptionCount - 1}")
+                        .Header(exceptionCount == 1 ? "Lỗi chính (Lớp ngoài cùng)" : $"Lỗi nội tại (Inner Exception) #{exceptionCount - 1}")
                         .Border(BoxBorder.Rounded)
                         .Expand();
 
                     AnsiConsole.Write(panel);
 
-                    // In Stack Trace một cách rõ ràng
                     AnsiConsole.MarkupLine("\n[bold underline yellow]Dấu vết ngăn xếp (Stack Trace):[/]");
                     AnsiConsole.MarkupLine($"[grey]{Markup.Escape(currentEx.StackTrace ?? "Không có stack trace.")}[/]");
                     AnsiConsole.WriteLine();

@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 
 namespace Project1_VTCA.UI
 {
-    public class WalletMenu : IWalletMenu
+    public class MyWalletMenu : IMyWalletMenu
     {
         private readonly IUserService _userService;
         private readonly ISessionService _sessionService;
 
-        public WalletMenu(IUserService userService, ISessionService sessionService)
+        public MyWalletMenu(IUserService userService, ISessionService sessionService)
         {
             _userService = userService;
             _sessionService = sessionService;
@@ -32,7 +32,7 @@ namespace Project1_VTCA.UI
                             "Nạp 200,000 VNĐ",
                             "Nạp 500,000 VNĐ",
                             "Nhập một số tiền khác...",
-                            "Quay lại" // SỬA LỖI: Loại bỏ thẻ [red]
+                            "Quay lại"
                         })
                 );
 
@@ -46,7 +46,7 @@ namespace Project1_VTCA.UI
                     case "Nạp 500,000 VNĐ": amount = 500000; break;
                     case "Nhập một số tiền khác...":
                         amount = AnsiConsole.Ask<decimal>("Nhập [green]số tiền[/] bạn muốn nạp (từ 10,000 đến 10,000,000, hoặc nhập 0 để quay lại):");
-                        if (amount == 0) continue; // Quay lại vòng lặp để hiển thị menu
+                        if (amount == 0) continue;
                         break;
                     case "Quay lại":
                         shouldExit = true;
@@ -88,7 +88,6 @@ namespace Project1_VTCA.UI
 
             if (response.IsSuccess)
             {
-                // Cập nhật số dư trong session để người dùng thấy ngay lập tức
                 _sessionService.CurrentUser.Balance += amount;
             }
 

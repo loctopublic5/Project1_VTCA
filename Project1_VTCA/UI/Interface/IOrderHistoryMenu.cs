@@ -2,8 +2,8 @@
 
 namespace Project1_VTCA.UI.Interface
 {
-    public interface IWalletMenu
+    public interface IOrderHistoryMenu
     {
-        Task ShowWalletAsync();
+        Task ShowAsync();
     }
 }

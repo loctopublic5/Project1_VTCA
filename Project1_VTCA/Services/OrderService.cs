@@ -124,5 +124,72 @@ namespace Project1_VTCA.Services
                 }
             });
         }
+
+        public async Task<List<Order>> GetOrdersAsync(int userId, string? statusFilter = null)
+        {
+            var query = _context.Orders.Where(o => o.UserID == userId);
+
+            if (!string.IsNullOrEmpty(statusFilter))
+            {
+                query = query.Where(o => o.Status == statusFilter);
+            }
+
+            return await query.OrderByDescending(o => o.OrderDate).ToListAsync();
+        }
+
+        public async Task<ServiceResponse> RequestCancellationAsync(int userId, int orderId, string reason)
+        {
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
+            if (order == null)
+            {
+                return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
+            }
+
+            if (order.Status != "PendingAdminApproval")
+            {
+                return new ServiceResponse(false, "Chỉ có thể yêu cầu hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
+            }
+
+            order.Status = "CancellationRequested";
+            order.CustomerCancellationReason = reason;
+            await _context.SaveChangesAsync();
+
+            return new ServiceResponse(true, "Yêu cầu hủy đơn hàng đã được gửi thành công.");
+        }
+
+        // PHÁC THẢO CHO GIAI ĐOẠN 4
+        public async Task<ServiceResponse> ApproveCancellationAsync(int orderId)
+        {
+            var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.OrderID == orderId);
+            if (order == null) return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
+
+            // Hoàn tiền nếu cần
+            if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+            {
+                order.User.Balance += order.TotalPrice;
+            }
+
+            order.Status = "Cancelled";
+            // Logic phục hồi kho hàng có thể được thêm ở đây
+
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Đã phê duyệt hủy đơn hàng và hoàn tiền (nếu có).");
+        }
+
+        // PHÁC THẢO CHO GIAI ĐOẠN 4
+        public async Task<ServiceResponse> ConfirmOrderAsync(int orderId)
+        {
+            var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.OrderID == orderId);
+            if (order == null) return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
+
+            // Cập nhật TotalSpending khi Admin xác nhận đơn hàng
+            decimal subTotal = await _context.OrderDetails.Where(od => od.OrderID == orderId).SumAsync(od => od.UnitPrice * od.Quantity);
+            order.User.TotalSpending += subTotal;
+
+            order.Status = "Processing"; // Hoặc "Completed"
+            await _context.SaveChangesAsync();
+
+            return new ServiceResponse(true, "Đã xác nhận đơn hàng thành công.");
+        }
     }
 }

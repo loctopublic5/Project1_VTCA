@@ -61,15 +61,21 @@ namespace Project1_VTCA.UI
 
             // CHUẨN HÓA: Lời gọi phương thức giờ đây truyền đúng số lượng và đúng loại tham số.
             var response = await _orderService.CreateOrderAsync(
-                _sessionService.CurrentUser.UserID,
-                itemsToCheckout,
-                $"{selectedAddress.AddressDetail}, {selectedAddress.City}", // shippingAddress
-                selectedAddress.ReceivePhone, // shippingPhone
-                paymentMethod
-            );
+            _sessionService.CurrentUser.UserID,
+            itemsToCheckout,
+            $"{selectedAddress.AddressDetail}, {selectedAddress.City}",
+            selectedAddress.ReceivePhone,
+            paymentMethod
+        );
 
             if (response.IsSuccess)
             {
+                // CẬP NHẬT: Trừ tiền vào số dư session ngay lập tức nếu thành công
+                if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                {
+                    _sessionService.CurrentUser.Balance -= totalPrice;
+                }
+
                 DisplaySuccessReceipt(response.Message, totalPrice);
                 Console.ReadKey();
                 return true;
@@ -81,6 +87,7 @@ namespace Project1_VTCA.UI
                 return false;
             }
         }
+        
 
         // PHƯƠNG THỨC MỚI: Tích hợp AddressService
         private async Task<Address> ChooseShippingAddress()

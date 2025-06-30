@@ -11,7 +11,7 @@ namespace Project1_VTCA.UI
         private readonly ProductMenu _productMenu;
         private readonly ICartMenu _cartMenu;
         private readonly ISessionService _sessionService;
-        private readonly IAccountManagementMenu _accountMenu; // THÊM: Inject menu con
+        private readonly IAccountManagementMenu _accountMenu;
 
         // Cập nhật constructor để nhận IAccountManagementMenu
         public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu, IAccountManagementMenu accountMenu)
@@ -39,7 +39,7 @@ namespace Project1_VTCA.UI
                         {
                             "Duyệt sản phẩm (Tất cả sản phẩm)",
                             "Xem giỏ hàng",
-                            "Quản lý tài khoản", // Đổi tên cho gọn gàng
+                            "Quản lý tài khoản", 
                             "[red]Đăng xuất[/]"
                         }));
 
