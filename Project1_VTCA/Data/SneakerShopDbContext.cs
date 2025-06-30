@@ -13,27 +13,35 @@ namespace Project1_VTCA.Data
     {
         public SneakerShopDbContext(DbContextOptions<SneakerShopDbContext> options) : base(options) { }
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<Product> Products { get; set; }
-        public DbSet<ProductCategory> ProductCategories { get; set; }
-        public DbSet<ProductSize> ProductSizes { get; set; }
-        public DbSet<Address> Addresses { get; set; }
-        public DbSet<CartItem> CartItems { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderDetail> OrderDetails { get; set; }
-        public DbSet<Promotion> Promotions { get; set; }
+        public virtual DbSet<User> Users { get; set; }
+        public virtual DbSet<Category> Categories { get; set; }
+        public virtual DbSet<Product> Products { get; set; }
+        public virtual DbSet<ProductCategory> ProductCategories { get; set; }
+        public virtual DbSet<ProductSize> ProductSizes { get; set; }
+        public virtual DbSet<Promotion> Promotions { get; set; }
+        public virtual DbSet<Address> Addresses { get; set; }
+        public virtual DbSet<CartItem> CartItems { get; set; }
+        public virtual DbSet<Order> Orders { get; set; }
+        public virtual DbSet<OrderDetail> OrderDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Gọi lại phương thức gốc để nó vẫn chạy các cấu hình mặc định
             base.OnModelCreating(modelBuilder);
 
-            // --- CẤU HÌNH KHÓA PHỨC HỢP VÀ MỐI QUAN HỆ (giữ nguyên như cũ) ---
+            
             modelBuilder.Entity<ProductCategory>().HasKey(pc => new { pc.ProductID, pc.CategoryID });
             modelBuilder.Entity<ProductSize>().HasKey(ps => new { ps.ProductID, ps.Size });
-            modelBuilder.Entity<CartItem>().HasKey(ci => new { ci.UserID, ci.ProductID, ci.Size });
-            modelBuilder.Entity<OrderDetail>().HasKey(od => new { od.OrderID, od.ProductID, od.Size });
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.TotalQuantity)
+                .HasDefaultValue(0);
+
+            
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Orders)
+                .WithOne(o => o.User)
+                .HasForeignKey(o => o.UserID)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.ApprovedOrders)
@@ -41,15 +49,17 @@ namespace Project1_VTCA.Data
                 .HasForeignKey(o => o.ApprovedByAdminID)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<User>()
-                .HasMany(u => u.Orders)
-                .WithOne(o => o.User)
-                .HasForeignKey(o => o.UserID)
-                .OnDelete(DeleteBehavior.Restrict);
+           
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.OrderCode)
+                .IsUnique();
 
-            modelBuilder.Entity<Product>()
-                .Property(p => p.TotalQuantity)
-                .HasDefaultValue(0);
+            modelBuilder.Entity<Order>()
+                .HasMany(o => o.OrderDetails)
+                .WithOne(od => od.Order)
+                .HasForeignKey(od => od.OrderID);
+
+
 
 
             //            // --- PHẦN CHÈN DỮ LIỆU MẪU (DATA SEEDING) ---

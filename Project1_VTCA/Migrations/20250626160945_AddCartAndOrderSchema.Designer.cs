@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Project1_VTCA.Data;
 
@@ -11,9 +12,11 @@ using Project1_VTCA.Data;
 namespace Project1_VTCA.Migrations
 {
     [DbContext(typeof(SneakerShopDbContext))]
-    partial class SneakerShopDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250626160945_AddCartAndOrderSchema")]
+    partial class AddCartAndOrderSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,9 +42,6 @@ namespace Project1_VTCA.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDefault")
                         .HasColumnType("bit");
@@ -282,6 +282,7 @@ namespace Project1_VTCA.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderID"));
 
                     b.Property<string>("AdminDecisionReason")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -289,18 +290,21 @@ namespace Project1_VTCA.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("CustomerCancellationReason")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("OrderCode")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("OrderDate")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PaymentMethod")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -2904,11 +2908,13 @@ namespace Project1_VTCA.Migrations
 
             modelBuilder.Entity("Project1_VTCA.Data.Address", b =>
                 {
-                    b.HasOne("Project1_VTCA.Data.User", null)
+                    b.HasOne("Project1_VTCA.Data.User", "User")
                         .WithMany("Addresses")
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Project1_VTCA.Data.CartItem", b =>

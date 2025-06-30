@@ -1,5 +1,6 @@
-﻿using Project1_VTCA.Services;
-using Project1_VTCA.Utils;
+﻿using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Draw;
+using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System.Threading.Tasks;
 
@@ -8,15 +9,17 @@ namespace Project1_VTCA.UI
     public class UserMenu : IUserMenu
     {
         private readonly ProductMenu _productMenu;
+        private readonly ICartMenu _cartMenu;
         private readonly ISessionService _sessionService;
-        // Chúng ta sẽ tiêm các service khác vào đây sau
-        // private readonly IFeaturedProductMenu _featuredProductMenu; 
+        private readonly IAccountManagementMenu _accountMenu;
 
-        public UserMenu(ProductMenu productMenu, ISessionService sessionService /*, IFeaturedProductMenu featuredProductMenu */)
+        // Cập nhật constructor để nhận IAccountManagementMenu
+        public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu, IAccountManagementMenu accountMenu)
         {
             _productMenu = productMenu;
+            _cartMenu = cartMenu;
             _sessionService = sessionService;
-            // _featuredProductMenu = featuredProductMenu;
+            _accountMenu = accountMenu; // Gán đối tượng menu con
         }
 
         public async Task Show()
@@ -35,35 +38,27 @@ namespace Project1_VTCA.UI
                         .AddChoices(new[]
                         {
                             "Duyệt sản phẩm (Tất cả sản phẩm)",
-                            "Xem sản phẩm nổi bật",
                             "Xem giỏ hàng",
-                            "Quản lý tài khoản (Địa chỉ, Lịch sử mua hàng...)",
+                            "Quản lý tài khoản", 
                             "[red]Đăng xuất[/]"
                         }));
 
                 switch (choice)
                 {
                     case "Duyệt sản phẩm (Tất cả sản phẩm)":
-                        // Gọi đến ProductMenu, nơi sẽ hiển thị layout 3 khung
                         await _productMenu.ShowAllProductsAsync();
                         break;
-                    case "Xem sản phẩm nổi bật":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Sản phẩm nổi bật' đang được xây dựng.[/]");
-                        Console.ReadKey();
-                        break;
                     case "Xem giỏ hàng":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Giỏ hàng' đang được xây dựng.[/]");
-                        Console.ReadKey();
+                        await _cartMenu.ShowAsync();
                         break;
-                    case "Quản lý tài khoản (Địa chỉ, Lịch sử mua hàng...)":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng 'Quản lý tài khoản' đang được xây dựng.[/]");
-                        Console.ReadKey();
+                    case "Quản lý tài khoản":
+                        await _accountMenu.ShowAsync(); // GỌI MENU CON
                         break;
                     case "[red]Đăng xuất[/]":
                         _sessionService.LogoutUser();
                         AnsiConsole.MarkupLine("[green]Bạn đã đăng xuất thành công.[/]");
                         Console.ReadKey();
-                        return; // Quay về Guest Menu
+                        return;
                 }
             }
         }

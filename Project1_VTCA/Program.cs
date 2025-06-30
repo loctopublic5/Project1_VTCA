@@ -3,9 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
-using Project1_VTCA.DTOs;
 using Project1_VTCA.Services;
+using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI;
+using Project1_VTCA.UI.Draw;
+using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System;
 using System.Linq;
@@ -21,20 +23,35 @@ class Program
         var builder = Host.CreateApplicationBuilder(args);
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        builder.Services.AddDbContext<SneakerShopDbContext>(options =>
-            options.UseSqlServer(connectionString, sqlOpt => sqlOpt.EnableRetryOnFailure()));
 
+        builder.Services.AddDbContext<SneakerShopDbContext>(options =>
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure();
+            }));
+
+        // ĐĂNG KÝ TOÀN BỘ CÁC SERVICES
         builder.Services.AddSingleton<ISessionService, SessionService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IProductService, ProductService>();
         builder.Services.AddScoped<IPromotionService, PromotionService>();
+        builder.Services.AddScoped<ICartService, CartService>();
+        builder.Services.AddScoped<IOrderService, OrderService>();
+        builder.Services.AddScoped<IUserService, UserService>();
+        builder.Services.AddScoped<IAddressService, AddressService>();
 
+        // ĐĂNG KÝ TOÀN BỘ CÁC MENUS
         builder.Services.AddSingleton<ConsoleLayout>();
         builder.Services.AddTransient<MainMenu>();
         builder.Services.AddTransient<ProductMenu>();
         builder.Services.AddTransient<IUserMenu, UserMenu>();
         builder.Services.AddTransient<IAdminMenu, AdminMenu>();
-       
+        builder.Services.AddTransient<ICartMenu, CartMenu>();
+        builder.Services.AddTransient<ICheckoutMenu, CheckoutMenu>();
+        builder.Services.AddTransient<IAddressMenu, AddressMenu>();
+        builder.Services.AddTransient<IMyWalletMenu, MyWalletMenu>(); 
+        builder.Services.AddTransient<IOrderHistoryMenu, OrderHistoryMenu>();
+        builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
 
         using var host = builder.Build();
 
@@ -50,10 +67,41 @@ class Program
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nĐÃ CÓ LỖI XẢY RA: {ex.Message}");
-                Console.ResetColor();
-                Console.WriteLine("Nhấn phím bất kỳ để thoát.");
+                AnsiConsole.Clear();
+                AnsiConsole.Write(new Rule("[bold red]ĐÃ CÓ LỖI NGHIÊM TRỌNG XẢY RA[/]").Centered());
+                AnsiConsole.WriteLine();
+
+                int exceptionCount = 1;
+                Exception currentEx = ex;
+
+                while (currentEx != null)
+                {
+                    var panel = new Panel(
+                        new Rows(
+                            new Markup($"[bold yellow]Loại lỗi:[/] [white]{Markup.Escape(currentEx.GetType().FullName)}[/]"),
+                            new Markup($"[bold yellow]Thông báo:[/] [white]{Markup.Escape(currentEx.Message)}[/]")
+                        ))
+                        .Header(exceptionCount == 1 ? "Lỗi chính (Lớp ngoài cùng)" : $"Lỗi nội tại (Inner Exception) #{exceptionCount - 1}")
+                        .Border(BoxBorder.Rounded)
+                        .Expand();
+
+                    AnsiConsole.Write(panel);
+
+                    AnsiConsole.MarkupLine("\n[bold underline yellow]Dấu vết ngăn xếp (Stack Trace):[/]");
+                    AnsiConsole.MarkupLine($"[grey]{Markup.Escape(currentEx.StackTrace ?? "Không có stack trace.")}[/]");
+                    AnsiConsole.WriteLine();
+
+                    currentEx = currentEx.InnerException;
+                    exceptionCount++;
+
+                    if (currentEx != null)
+                    {
+                        AnsiConsole.Write(new Rule("[red]Nguyên nhân gốc rễ (xem lỗi bên dưới)[/]").Centered());
+                    }
+                }
+
+                AnsiConsole.Write(new Rule("[bold red]CHƯƠNG TRÌNH SẼ DỪNG LẠI[/]").Centered());
+                AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để thoát.[/]");
                 Console.ReadKey();
             }
         }

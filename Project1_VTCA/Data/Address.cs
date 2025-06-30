@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Project1_VTCA.Data
 {
@@ -13,18 +8,23 @@ namespace Project1_VTCA.Data
     {
         [Key]
         public int AddressID { get; set; }
-
         public int UserID { get; set; }
 
-        // Đã đổi tên từ AddressDetail và cập nhật độ dài
+        [Required]
         [StringLength(200)]
-        public string StreetAddress { get; set; }
+        public string AddressDetail { get; set; }
 
-        // Thêm cột City
+        [Required]
         [StringLength(100)]
         public string City { get; set; }
 
-        [ForeignKey("UserID")]
-        public User User { get; set; }
+        [Required]
+        [StringLength(10)]
+        public string ReceivePhone { get; set; }
+
+        public bool IsDefault { get; set; }
+
+        
+        public bool IsActive { get; set; } = true; 
     }
 }

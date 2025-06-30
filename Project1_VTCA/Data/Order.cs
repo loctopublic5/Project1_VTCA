@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Project1_VTCA.Data;
-    
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Project1_VTCA.Data
 {
     [Table("Orders")]
@@ -15,42 +11,49 @@ namespace Project1_VTCA.Data
         [Key]
         public int OrderID { get; set; }
 
+        [Required]
+        [StringLength(30)]
+        public string OrderCode { get; set; }
+
         public int UserID { get; set; }
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        // CẬP NHẬT: Loại bỏ DataAnnotation, để C# toàn quyền kiểm soát.
         public DateTime OrderDate { get; set; }
 
+        [Required]
         [StringLength(50)]
         public string Status { get; set; }
 
         [Column(TypeName = "decimal(18, 2)")]
         public decimal TotalPrice { get; set; }
 
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal ShippingFee { get; set; }
+        [Required]
+        [StringLength(300)]
+        public string ShippingAddress { get; set; }
 
-        [Column(TypeName = "decimal(18, 2)")]
-        public decimal ShippingDiscountAmount { get; set; }
+        [Required]
+        [StringLength(10)]
+        public string ShippingPhone { get; set; }
 
         [StringLength(50)]
-        public string PaymentMethod { get; set; }
+        public string? PaymentMethod { get; set; }
 
         public int? ApprovedByAdminID { get; set; }
 
         [StringLength(200)]
-        public string AdminDecisionReason { get; set; }
+        public string? AdminDecisionReason { get; set; }
 
         [StringLength(200)]
-        public string CustomerCancellationReason { get; set; }
+        public string? CustomerCancellationReason { get; set; }
 
-        public bool RefundRequested { get; set; }
+        public bool RefundRequested { get; set; } = false;
 
         [ForeignKey("UserID")]
-        public User User { get; set; }
+        public virtual User User { get; set; }
 
         [ForeignKey("ApprovedByAdminID")]
-        public User ApprovedByAdmin { get; set; }
+        public virtual User? ApprovedByAdmin { get; set; }
 
-        public ICollection<OrderDetail> OrderDetails { get; set; }
+        public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }
 }

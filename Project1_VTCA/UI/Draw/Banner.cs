@@ -1,6 +1,6 @@
 ﻿using Spectre.Console;
 
-namespace Project1_VTCA.Utils
+namespace Project1_VTCA.UI.Draw
 {
     public static class Banner
     {

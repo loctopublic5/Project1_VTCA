@@ -1,7 +1,7 @@
 ﻿using Project1_VTCA.DTOs;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.Services
+namespace Project1_VTCA.Services.Interface
 {
     public interface IAuthService
     {

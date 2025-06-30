@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Project1_VTCA.Data;
 
@@ -11,9 +12,11 @@ using Project1_VTCA.Data;
 namespace Project1_VTCA.Migrations
 {
     [DbContext(typeof(SneakerShopDbContext))]
-    partial class SneakerShopDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250629151259_UpdateIsActiveforAddress")]
+    partial class UpdateIsActiveforAddress
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -282,6 +285,7 @@ namespace Project1_VTCA.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OrderID"));
 
                     b.Property<string>("AdminDecisionReason")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -289,6 +293,7 @@ namespace Project1_VTCA.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("CustomerCancellationReason")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -298,9 +303,11 @@ namespace Project1_VTCA.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTime>("OrderDate")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PaymentMethod")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 

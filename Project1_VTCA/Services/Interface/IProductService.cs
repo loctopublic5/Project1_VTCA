@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.Services
+namespace Project1_VTCA.Services.Interface
 {
     public interface IProductService
     {
