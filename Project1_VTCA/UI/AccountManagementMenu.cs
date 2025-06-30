@@ -44,7 +44,7 @@ namespace Project1_VTCA.UI
                     case "Quản lý đơn hàng":
                         await _orderHistoryMenu.ShowAsync(); 
                         break;
-                    case "[red]Quay lại[/]":
+                    case "[red]Quay lại Menu chính[/]":
                         return;
                 }
             }

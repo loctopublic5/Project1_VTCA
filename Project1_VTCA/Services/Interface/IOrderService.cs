@@ -9,10 +9,13 @@ namespace Project1_VTCA.Services.Interface
         Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod);
         decimal CalculateShippingFee(int totalQuantity);
 
+        // NÂNG CẤP: Thay đổi chữ ký để hỗ trợ phân trang
+        Task<(List<Order> Orders, int TotalPages)> GetOrdersAsync(int userId, string? statusFilter, int pageNumber, int pageSize);
 
-        Task<List<Order>> GetOrdersAsync(int userId, string? statusFilter = null);
+        Task<Order?> GetOrderByIdAsync(int orderId, int userId);
         Task<ServiceResponse> RequestCancellationAsync(int userId, int orderId, string reason);
-        Task<ServiceResponse> ApproveCancellationAsync(int orderId); // Cho Giai đoạn 4
-        Task<ServiceResponse> ConfirmOrderAsync(int orderId); // Cho Giai đoạn 4
+
+        Task<ServiceResponse> ApproveCancellationAsync(int orderId);
+        Task<ServiceResponse> ConfirmOrderAsync(int orderId);
     }
 }

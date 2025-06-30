@@ -32,7 +32,6 @@ namespace Project1_VTCA.UI
             _layout = layout;
         }
 
-        // THAY ĐỔI: Chuyển từ 'private' thành 'public' để CartMenu có thể gọi
         public async Task HandleViewProductDetailsAsync(int productId)
         {
             var product = await _productService.GetProductByIdAsync(productId);
@@ -85,7 +84,7 @@ namespace Project1_VTCA.UI
                 switch (choice)
                 {
                     case "1":
-                        await HandleBuyNowAsync(product);
+                        await HandleBuyNowFlowAsync(product);
                         break;
                     case "2":
                         await HandleAddToCartFlowAsync(product);
@@ -96,7 +95,7 @@ namespace Project1_VTCA.UI
             }
         }
 
-        private async Task HandleBuyNowAsync(Product product)
+        private async Task HandleBuyNowFlowAsync(Product product)
         {
             if (!_sessionService.IsLoggedIn)
             {
@@ -104,6 +103,10 @@ namespace Project1_VTCA.UI
                 Console.ReadKey();
                 return;
             }
+
+            AnsiConsole.Clear();
+            Banner.Show();
+            AnsiConsole.MarkupLine($"[bold underline]MUA NGAY SẢN PHẨM: {Markup.Escape(product.Name)}[/]");
 
             var availableSizes = product.ProductSizes?.Where(s => (s.QuantityInStock ?? 0) > 0).ToList();
             if (availableSizes == null || !availableSizes.Any())
@@ -115,14 +118,13 @@ namespace Project1_VTCA.UI
 
             var selectedSize = AnsiConsole.Prompt(
                 new SelectionPrompt<ProductSize>()
-                    .Title($"Chọn [green]size[/] để mua ngay:")
+                    .Title($"Chọn [green]size[/]:")
                     .UseConverter(ps => $"{ps.Size} (Tồn kho: {ps.QuantityInStock})")
                     .AddChoices(availableSizes));
 
             var quantity = AnsiConsole.Prompt(
                 new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
-                    .Validate(q =>
-                    {
+                    .Validate(q => {
                         if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
                         if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
                         if (q > (selectedSize.QuantityInStock ?? 0)) return ValidationResult.Error("[red]Số lượng vượt quá tồn kho.[/]");
@@ -130,12 +132,109 @@ namespace Project1_VTCA.UI
                     }));
 
             var itemToCheckout = new List<CartItem>
-        {
-            // Cần gán cả Product để các bước sau có thể tính khuyến mãi
-            new CartItem { Product = product, ProductID = product.ProductID, Size = selectedSize.Size, Quantity = quantity, UserID = _sessionService.CurrentUser.UserID }
-        };
+            {
+                new CartItem { Product = product, ProductID = product.ProductID, Size = selectedSize.Size, Quantity = quantity, UserID = _sessionService.CurrentUser.UserID }
+            };
 
+            // Bắt đầu luồng thanh toán
             await _checkoutMenu.StartCheckoutFlowAsync(itemToCheckout);
+        }
+
+        private async Task HandleAddToCartFlowAsync(Product product)
+        {
+            if (!_sessionService.IsLoggedIn)
+            {
+                AnsiConsole.MarkupLine("\n[red]Bạn cần đăng nhập để thực hiện chức năng này.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            AnsiConsole.Clear();
+            Banner.Show();
+            AnsiConsole.MarkupLine($"[bold underline]THÊM VÀO GIỎ HÀNG: {Markup.Escape(product.Name)}[/]");
+
+            var availableSizes = product.ProductSizes?.Where(s => (s.QuantityInStock ?? 0) > 0).ToList();
+            if (availableSizes == null || !availableSizes.Any())
+            {
+                AnsiConsole.MarkupLine("\n[red]Sản phẩm này hiện đã hết hàng.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var selectedSize = AnsiConsole.Prompt(
+                new SelectionPrompt<ProductSize>()
+                    .Title($"Chọn [green]size[/]:")
+                    .UseConverter(ps => $"{ps.Size} (Tồn kho: {ps.QuantityInStock})")
+                    .AddChoices(availableSizes)
+            );
+
+            var quantity = AnsiConsole.Prompt(
+                new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
+                    .Validate(q => {
+                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
+                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
+                        var stock = selectedSize.QuantityInStock ?? 0;
+                        if (q > stock) return ValidationResult.Error($"[red]Số lượng tồn kho không đủ (chỉ còn {stock}).[/]");
+                        return ValidationResult.Success();
+                    }));
+
+            var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
+            var finalPrice = discountedPrice ?? product.Price;
+
+            var table = new Table().Border(TableBorder.None).HideHeaders().Expand();
+            table.AddColumn("");
+            table.AddColumn("");
+            table.AddRow("[bold]Sản phẩm:[/]", Markup.Escape(product.Name));
+            table.AddRow("[bold]Size đã chọn:[/]", $"[yellow]{selectedSize.Size}[/]");
+            table.AddRow("[bold]Số lượng:[/]", $"[yellow]{quantity}[/]");
+            table.AddRow("[bold]Tổng cộng:[/]", $"[green]{(finalPrice * quantity):N0} VNĐ[/]");
+            AnsiConsole.Write(new Panel(table).Header("XÁC NHẬN THÔNG TIN").Border(BoxBorder.Rounded));
+
+            if (!AnsiConsole.Confirm("\n[bold]Xác nhận thêm vào giỏ hàng?[/]", defaultValue: true))
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var response = await _cartService.AddToCartAsync(_sessionService.CurrentUser.UserID, product.ProductID, selectedSize.Size, quantity);
+            string color = response.IsSuccess ? "green" : "red";
+            AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
+            Console.ReadKey();
+        }
+
+        private async Task<Table> CreateProductTableAsync(List<Product> products)
+        {
+            var table = new Table().Expand().Border(TableBorder.HeavyHead);
+            table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
+            table.AddColumn(new TableColumn("[yellow]ID[/]").Alignment(Justify.Center));
+            table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
+            table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
+            table.AddColumn(new TableColumn("[yellow]Giá[/]").Alignment(Justify.Right));
+
+            if (!products.Any())
+            {
+                table.AddRow(new Text("Không có sản phẩm nào để hiển thị.", new Style(Color.Red))).Centered();
+                return table;
+            }
+
+            foreach (var product in products)
+            {
+                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
+                string priceDisplay = discountedPrice.HasValue
+                    ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]"
+                    : $"[green]{product.Price:N0} VNĐ[/]";
+
+                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
+
+                table.AddRow(
+                    new Markup(product.ProductID.ToString()),
+                    new Markup(Markup.Escape(product.Name)),
+                    new Markup(brand),
+                    new Markup(priceDisplay)
+                );
+            }
+            return table;
         }
 
         #region Other ProductMenu Methods
@@ -207,6 +306,36 @@ namespace Project1_VTCA.UI
 
         private async Task<bool> HandleChoice(string choice, ProductDisplayState state)
         {
+            if (choice.StartsWith("add.") || choice.StartsWith("buy."))
+            {
+                var parts = choice.Split('.');
+                if (parts.Length == 2 && int.TryParse(parts[1], out int productId))
+                {
+                    var product = await _productService.GetProductByIdAsync(productId);
+                    if (product == null)
+                    {
+                        AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm với ID này.[/]");
+                        Console.ReadKey();
+                        return true;
+                    }
+
+                    if (parts[0] == "add")
+                    {
+                        await HandleAddToCartFlowAsync(product);
+                    }
+                    else // parts[0] == "buy"
+                    {
+                        await HandleBuyNowFlowAsync(product);
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]Lỗi: Cú pháp lệnh không hợp lệ.[/]");
+                    Console.ReadKey();
+                }
+                return true; // Quay lại vòng lặp để làm mới danh sách
+            }
+
             if (choice.StartsWith("id."))
             {
                 if (int.TryParse(choice.AsSpan(3), out int productId))
@@ -251,19 +380,23 @@ namespace Project1_VTCA.UI
         private Markup CreateSideMenu()
         {
             return new Markup(
-                "[bold yellow underline]SẮP XẾP[/]\n" +
-                "1. Mặc định\n" +
-                "2. Giá: Cao-Thấp\n" +
-                "3. Giá: Thấp-Cao\n\n" +
-                "[bold yellow underline]LỌC & TÌM KIẾM[/]\n" +
-                "4. Tìm kiếm\n" +
+                "[bold yellow underline]HÀNH ĐỘNG NHANH[/]\n" +
+                "[blue]add.{id}[/] - Thêm vào giỏ hàng\n" +
+                "[blue]buy.{id}[/] - Mua ngay sản phẩm\n" +
+                "[blue]id.{id}[/]  - Xem chi tiết sản phẩm\n\n" +
+                "[bold yellow underline]LỌC & SẮP XẾP[/]\n" +
+                "1. Sắp xếp (Mặc định)\n" +
+                "2. Sắp xếp (Giá: Cao-Thấp)\n" +
+                "3. Sắp xếp (Giá: Thấp-Cao)\n" +
+                "4. Tìm kiếm theo tên\n" +
                 "5. Lọc theo danh mục\n" +
                 "6. Lọc theo giá\n" +
-                "0. Trang chính\n\n" +
-                "[dim]exit - Thoát trang sản phẩm; \n" +
-                "n - Trang sau; \np - Trang trước;\n" +
-                "p.{số trang} - Đến trang chỉ định;\n" +
-                "id.{mã sp} - Xem chi tiết sản phẩm[/]"
+                "0. Quay về mặc định\n\n" +
+                "[bold yellow underline]ĐIỀU HƯỚNG[/]\n" +
+                "[dim]n - Trang sau\n" +
+                "p - Trang trước\n" +
+                "p.{số} - Đến trang chỉ định[/]\n" +
+                "[red]exit[/] - Thoát"
             );
         }
 
@@ -330,74 +463,9 @@ namespace Project1_VTCA.UI
             }
         }
 
-        private async Task HandleAddToCartFlowAsync(Product product)
-        {
-            if (!_sessionService.IsLoggedIn)
-            {
-                AnsiConsole.MarkupLine("\n[red]Bạn cần đăng nhập để thực hiện chức năng này.[/]");
-                Console.ReadKey();
-                return;
-            }
 
-            var availableSizes = product.ProductSizes?.Where(s => (s.QuantityInStock ?? 0) > 0).ToList();
-            if (availableSizes == null || !availableSizes.Any())
-            {
-                AnsiConsole.MarkupLine("\n[red]Sản phẩm này hiện đã hết hàng.[/]");
-                Console.ReadKey();
-                return;
-            }
 
-            AnsiConsole.Clear();
-            Banner.Show();
-            var selectedSize = AnsiConsole.Prompt(
-                new SelectionPrompt<ProductSize>()
-                    .Title($"[bold]BƯỚC 1: CHỌN SIZE CHO[/] [underline]{Markup.Escape(product.Name)}[/]")
-                    .PageSize(10)
-                    .MoreChoicesText("[grey](Dùng phím Lên/Xuống để chọn, Enter để tiếp tục)[/]")
-                    .UseConverter(ps => $"{ps.Size} (Tồn kho: {ps.QuantityInStock})")
-                    .AddChoices(availableSizes)
-            );
-
-            var quantity = AnsiConsole.Prompt(
-                new TextPrompt<int>($"\nBƯỚC 2: Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
-                    .ValidationErrorMessage("[red]Dữ liệu không hợp lệ![/]")
-                    .Validate(q =>
-                    {
-                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
-                        var stock = selectedSize.QuantityInStock ?? 0;
-                        if (q > stock) return ValidationResult.Error($"[red]Số lượng tồn kho không đủ (chỉ còn {stock}).[/]");
-                        return ValidationResult.Success();
-                    })
-            );
-
-            AnsiConsole.WriteLine();
-            var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
-            var finalPrice = discountedPrice ?? product.Price;
-
-            var table = new Table().Border(TableBorder.None).HideHeaders().Expand();
-            table.AddColumn("");
-            table.AddColumn("");
-            table.AddRow("[bold]Sản phẩm:[/]", Markup.Escape(product.Name));
-            table.AddRow("[bold]Size đã chọn:[/]", $"[yellow]{selectedSize.Size}[/]");
-            table.AddRow("[bold]Số lượng:[/]", $"[yellow]{quantity}[/]");
-            table.AddRow("[bold]Tổng cộng:[/]", $"[green]{(finalPrice * quantity):N0} VNĐ[/]");
-            AnsiConsole.Write(new Panel(table).Header("XÁC NHẬN THÔNG TIN").Border(BoxBorder.Rounded));
-
-            if (!AnsiConsole.Confirm("\n[bold]Xác nhận thêm vào giỏ hàng?[/]", defaultValue: true))
-            {
-                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
-                Console.ReadKey();
-                return;
-            }
-
-            var response = await _cartService.AddToCartAsync(_sessionService.CurrentUser.UserID, product.ProductID, selectedSize.Size, quantity);
-            string color = response.IsSuccess ? "green" : "red";
-            AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
-            Console.ReadKey();
-        }
-
-        private async Task<Table> CreateProductTableAsync(List<Product> products)
+        private async Task<Table> CreateProductTableAsync(List<Product> products, bool includeMainStyle = false)
         {
             var table = new Table().Expand().Border(TableBorder.HeavyHead);
             table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
@@ -405,7 +473,10 @@ namespace Project1_VTCA.UI
             table.AddColumn(new TableColumn("[yellow]ID[/]") { Alignment = Justify.Center });
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
-            table.AddColumn(new TableColumn("[yellow]Phong cách chính[/]"));
+            if (includeMainStyle)
+            {
+                table.AddColumn(new TableColumn("[yellow]Phong cách chính[/]"));
+            }
             table.AddColumn(new TableColumn("[yellow]Giá[/]") { Alignment = Justify.Right });
 
             if (!products.Any())
@@ -423,20 +494,33 @@ namespace Project1_VTCA.UI
 
                 var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
 
-                var mainStyle = product.ProductCategories?
-                                     .Select(pc => pc.Category)
-                                     .FirstOrDefault(c => c.CategoryType == "Product")?.Name ?? "N/A";
+                if (includeMainStyle)
+                {
+                    var mainStyle = product.ProductCategories?
+                                         .Select(pc => pc.Category)
+                                         .FirstOrDefault(c => c.CategoryType == "Product")?.Name ?? "N/A";
 
-                table.AddRow(
-                    new Markup(product.ProductID.ToString()),
-                    new Markup(Markup.Escape(product.Name)),
-                    new Markup(brand),
-                    new Markup(mainStyle),
-                    new Markup(priceDisplay)
-                );
+                    table.AddRow(
+                        new Markup(product.ProductID.ToString()),
+                        new Markup(Markup.Escape(product.Name)),
+                        new Markup(brand),
+                        new Markup(mainStyle),
+                        new Markup(priceDisplay)
+                    );
+                }
+                else
+                {
+                    table.AddRow(
+                        new Markup(product.ProductID.ToString()),
+                        new Markup(Markup.Escape(product.Name)),
+                        new Markup(brand),
+                        new Markup(priceDisplay)
+                    );
+                }
             }
             return table;
         }
+
 
         private async Task<string> HandleSearchPrompt()
         {
