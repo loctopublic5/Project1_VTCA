@@ -12,5 +12,7 @@ namespace Project1_VTCA.Services.Interface
         Task<(List<Product> Products, int TotalPages)> GetPaginatedProductsAsync(IQueryable<Product> query, int pageNumber, int pageSize, string sortBy);
         Task<Product> GetProductByIdAsync(int productId);
         Task<List<Category>> GetAllProductCategoriesAsync();
+
+        string GetDisplayCategory(Product product);
     }
 }

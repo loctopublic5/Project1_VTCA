@@ -21,6 +21,7 @@ namespace Project1_VTCA.UI
         private readonly ICartService _cartService;
         private readonly ICheckoutMenu _checkoutMenu;
         private readonly ConsoleLayout _layout;
+        private List<Category> _productCategories;
 
         public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ICartService cartService, ConsoleLayout layout, ICheckoutMenu checkoutMenu)
         {
@@ -207,9 +208,12 @@ namespace Project1_VTCA.UI
         {
             var table = new Table().Expand().Border(TableBorder.HeavyHead);
             table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
+
             table.AddColumn(new TableColumn("[yellow]ID[/]").Alignment(Justify.Center));
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
+            // --- THÊM CỘT MỚI ---
+            table.AddColumn(new TableColumn("[yellow]Danh mục chính[/]"));
             table.AddColumn(new TableColumn("[yellow]Giá[/]").Alignment(Justify.Right));
 
             if (!products.Any())
@@ -220,17 +224,22 @@ namespace Project1_VTCA.UI
 
             foreach (var product in products)
             {
-                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
+                var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
                 string priceDisplay = discountedPrice.HasValue
                     ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]"
                     : $"[green]{product.Price:N0} VNĐ[/]";
 
                 var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
 
+                
+                var displayCategory = _productService.GetDisplayCategory(product);
+
                 table.AddRow(
                     new Markup(product.ProductID.ToString()),
                     new Markup(Markup.Escape(product.Name)),
                     new Markup(brand),
+                    
+                    new Markup(Markup.Escape(displayCategory)),
                     new Markup(priceDisplay)
                 );
             }

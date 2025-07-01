@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
-using Project1_VTCA.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,6 +44,30 @@ namespace Project1_VTCA.Services
             return (products, totalPages);
         }
 
+        public string GetDisplayCategory(Product product)
+        {
+            if (product?.ProductCategories == null || !product.ProductCategories.Any())
+            {
+                return "N/A";
+            }
+
+            var mainCategory = product.ProductCategories
+                .Select(pc => pc.Category)
+                .FirstOrDefault(c => c.CategoryType == "Product");
+
+            if (mainCategory == null)
+            {
+                return "N/A";
+            }
+
+            // Logic lược bỏ chuỗi "Giày "
+            if (mainCategory.Name.StartsWith("Giày "))
+            {
+                return mainCategory.Name.Substring(5).Trim();
+            }
+
+            return mainCategory.Name;
+        }
         public IQueryable<Product> GetSearchQuery(string searchTerm)
         {
             var baseQuery = GetActiveProductsQuery();

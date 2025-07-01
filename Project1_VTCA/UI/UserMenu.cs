@@ -13,13 +13,12 @@ namespace Project1_VTCA.UI
         private readonly ISessionService _sessionService;
         private readonly IAccountManagementMenu _accountMenu;
 
-        // Cập nhật constructor để nhận IAccountManagementMenu
         public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu, IAccountManagementMenu accountMenu)
         {
             _productMenu = productMenu;
             _cartMenu = cartMenu;
             _sessionService = sessionService;
-            _accountMenu = accountMenu; // Gán đối tượng menu con
+            _accountMenu = accountMenu; 
         }
 
         public async Task Show()

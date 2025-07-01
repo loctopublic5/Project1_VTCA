@@ -1,0 +1,21 @@
+[33m4b73dae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelop[m[33m, [m[1;33mtag: [m[1;33mv1.1.0[m[33m, [m[1;31morigin/develop[m[33m)[m feat: chức năng quản lý đơn hàng toàn diện -> hoàn thành dự án lần đầu tiên
+[33m0e8b89a[m feat: quản lý đơn hàng cơ bản Bug: unbalanced markup stack của chức năng quản lý đơn hàng
+[33m18f8764[m feat: Hoàn thành chức năng thanh toán - cơ bản đầy đủ. Sẽ chỉ cần sửa đổi lại các vấn đề hiển thị cơ bản & Sắp tới sẽ có trang quản lý đơn hàng
+[33mba10723[m feat:nạp tiền,quản lý địa chỉ -> Chỉ là cơ bản chạy được còn nhiều vấn đề tiềm ẩn và kết nối với luồng thanh toán sẽ xử lý và commit sau
+[33m520ed39[m feat: tạo khung cơ bản cho module thanh toán, còn nhiều vấn đề nhưng đây mới chỉ là demo
+[33m0773bae[m feat:thêm,sửa,xoá,xem với giỏ hàng-> nhiều bug nhất từ trước đến giờ
+[33m67aa3bc[m feat:Hoàn thành CƠ BẢN chức năng thêm giỏ hàng & xem giỏ hàng
+[33m4d0b230[m feat:Thêm sản phẩm vào giở hàng ( chưa xử lý được vấn đề cuối cùng xác nhận thanh toán là truy vấn đển csdl nhưng gặp xung đột về định dạng dữ liệu)
+[33mdd40476[m[33m ([m[1;33mtag: [m[1;33mv1.0.0[m[33m, [m[1;32mmain[m[33m)[m refactor:Hoàn thiện cấu trục cơ bản đầu tiền -> Version 1.0.0
+[33m855a38d[m refactor:Cấu trúc lại logic ui Productmenu & tạo lại migration để có thể có mật khẩu admin đúng định dạng
+[33mf8a1efa[m feat: Xem chi tiết sản phẩm & loại bỏ chức năng lọc sản phẩm giảm giá
+[33m8b42f1e[m chore: chức năng GetDiscountedProductsPaginatedAsync chủa được hoàn thiện khi còn errors
+[33m241cf9a[m feat:hoàn thiện lọc sản phẩm->xem chi tiết sp
+[33m526174b[m feat: 3 chức năng lọc sản phẩm & cải tiến giao diện ( cần bỏ sung thêm chức năng lọc & chọn mua)
+[33m0ebdce2[m feat:menu user và duyệt sản phẩm & cập nhật về giao diện
+[33m5c87997[m feat:Hoàn thành chức năng đăng kí/đăng nhập & định hình giao diện cơ bản -> Phát triển lọc/duyệt/chọn sản phẩm
+[33m483bf1e[m feat: quên mật khẩu & chỉnh sưa thêm và giao diện nhưng vẫn tồi tại lỗi xung đột giữa nghiệp vụ và giao diện
+[33m46d19eb[m feat: Chức năng đăng kí đăng nhập & Xây dựng lại giao diện ( chưa hoàn thiện nhưng đã ổn định bộ khung)
+[33m2ec9be9[m feat: Cập nhật lại migration.Và thử nghiệm chức năng hiên thị sản phẩm cơ bản->Hoàn thiện chức năng đăngkis/đăng nhập
+[33me8c388d[m Add project files.
+[33m75674de[m Add .gitattributes and .gitignore.
