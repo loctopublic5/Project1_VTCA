@@ -6,6 +6,7 @@ using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Project1_VTCA.UI.Admin
@@ -25,16 +26,24 @@ namespace Project1_VTCA.UI.Admin
 
         public async Task ShowAsync()
         {
-            string? currentFilter = "ActionRequired"; // Mặc định hiển thị đơn cần xử lý
+            string? currentFilter = "ActionRequired";
+            int currentPage = 1;
+            const int pageSize = 10;
+
             while (true)
             {
-                var orders = await _orderService.GetOrdersForAdminAsync(currentFilter);
+                var (orders, totalPages) = await _orderService.GetOrdersForAdminAsync(currentFilter, currentPage, pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
 
-                var menuContent = CreateMenu(currentFilter);
+                var menuContent = CreateSideMenu();
                 var viewContent = CreateOrderTable(orders);
-                var notification = new Markup("[dim]Chọn bộ lọc hoặc nhập 'v.{id}' để xem chi tiết.[/]");
+                var notificationContent = new Markup($"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]. " +
+                                                     "[dim]Chọn bộ lọc hoặc dùng lệnh hành động.[/]");
 
-                _layout.Render(menuContent, viewContent, notification);
+                _layout.Render(menuContent, viewContent, notificationContent);
 
                 var choice = AnsiConsole.Ask<string>("\n> Nhập lựa chọn:").ToLower();
 
@@ -42,60 +51,71 @@ namespace Project1_VTCA.UI.Admin
                 {
                     if (int.TryParse(choice.AsSpan(2), out int orderId))
                     {
-                        await HandleViewOrderDetailsAsync(orderId);
+                        // Logic "Xem chi tiết theo Ngữ cảnh"
+                        if (orders.Any(o => o.OrderID == orderId))
+                        {
+                            await HandleViewOrderDetailsAsync(orderId);
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine("[red]Lỗi: ID đơn hàng không hợp lệ hoặc không thuộc bộ lọc/trang hiện tại.[/]");
+                            Console.ReadKey();
+                        }
                     }
-                    continue; // Quay lại vòng lặp để làm mới danh sách
+                    continue;
                 }
 
+                bool filterChanged = true;
                 switch (choice)
                 {
                     case "1": currentFilter = "ActionRequired"; break;
-                    case "2": currentFilter = null; break; // null = Tất cả
+                    case "2": currentFilter = null; break;
                     case "3": currentFilter = "Processing"; break;
                     case "4": currentFilter = "Cancelled"; break;
+                    case "n":
+                        if (currentPage < totalPages) currentPage++;
+                        filterChanged = false;
+                        break;
+                    case "p":
+                        if (currentPage > 1) currentPage--;
+                        filterChanged = false;
+                        break;
                     case "0": return;
-                    default: break;
+                    default:
+                        filterChanged = false;
+                        break;
+                }
+                if (filterChanged)
+                {
+                    currentPage = 1;
                 }
             }
         }
 
-        private Markup CreateMenu(string? activeFilter)
+        private Markup CreateSideMenu()
         {
-            var menuItems = new Dictionary<string, string>
-            {
-                { "1", "Đơn hàng cần xử lý" },
-                { "2", "Xem Tất cả" },
-                { "3", "Đơn hàng đã xác nhận" },
-                { "4", "Đơn hàng đã hủy" }
-            };
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("[bold yellow underline]QUẢN LÝ ĐƠN HÀNG[/]");
-            sb.AppendLine("[bold]Lọc theo trạng thái:[/]");
-
-            foreach (var item in menuItems)
-            {
-                // Highlight bộ lọc đang được chọn
-                if ((activeFilter == "ActionRequired" && item.Key == "1") || activeFilter == null && item.Key == "2" || activeFilter == "Processing" && item.Key == "3" || activeFilter == "Cancelled" && item.Key == "4")
-                {
-                    sb.AppendLine($" [bold yellow]>[/] [underline yellow][{item.Key}] {item.Value}[/]");
-                }
-                else
-                {
-                    sb.AppendLine($"   [{item.Key}] {item.Value}");
-                }
-            }
-
-            sb.AppendLine("\n[red][0] Quay lại[/]");
-            return new Markup(sb.ToString());
+            // Menu tĩnh, an toàn và không thay đổi
+            return new Markup(
+                "[bold yellow underline]QUẢN LÝ ĐƠN HÀNG[/]\n\n" +
+                "[bold green underline]Lọc theo trạng thái:[/]\n" +
+                " 1. Đơn hàng cần xử lý\n" +
+                " 2. Xem Tất cả\n" +
+                " 3. Đơn hàng đã xác nhận\n" +
+                " 4. Đơn hàng đã hủy\n\n" +
+                "[bold green underline]Hành động & Điều hướng:[/]\n" +
+                " [dim]v.{id} - Xem chi tiết\n" +
+                " n - Trang sau, p - Trang trước[/]\n" +
+                " [red]0. Quay lại[/]"
+            );
         }
 
         private Table CreateOrderTable(List<Order> orders)
         {
             var table = new Table().Expand().Border(TableBorder.Rounded);
-            table.AddColumn("ID Đơn hàng");
+            table.Title = new TableTitle("DANH SÁCH ĐƠN HÀNG");
+            table.AddColumn("ID");
             table.AddColumn("Mã Đơn");
-            table.AddColumn("Tên Khách hàng");
+            table.AddColumn("Khách hàng");
             table.AddColumn("Ngày đặt");
             table.AddColumn("Tổng tiền");
             table.AddColumn("Trạng thái");
@@ -109,10 +129,10 @@ namespace Project1_VTCA.UI.Admin
             foreach (var order in orders)
             {
                 table.AddRow(
-            new Markup(order.OrderID.ToString()),
+            new Markup(Markup.Escape(order.OrderID.ToString())),
             new Markup(Markup.Escape(order.OrderCode)),
-            new Markup(Markup.Escape(order.User.FullName)),
-            new Markup(order.OrderDate.ToString("dd/MM/yyyy HH:mm")),
+            new Markup(Markup.Escape(order.User?.FullName ?? "N/A")),
+            new Markup(Markup.Escape(order.OrderDate.ToString("dd/MM/yyyy HH:mm"))),
             new Markup($"[yellow]{order.TotalPrice:N0} VNĐ[/]"),
             FormatOrderStatus(order.Status)
         );
@@ -122,139 +142,108 @@ namespace Project1_VTCA.UI.Admin
 
         private async Task HandleViewOrderDetailsAsync(int orderId)
         {
-            var order = await _orderService.GetOrderByIdAsync(orderId, 0); // Lấy chi tiết đơn hàng cho admin
+            var order = await _orderService.GetOrderByIdAsync(orderId, 0);
             if (order == null)
             {
-                AnsiConsole.MarkupLine("[red]Không tìm thấy đơn hàng với ID này.[/]");
+                AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy đơn hàng với ID này.[/]");
                 Console.ReadKey();
                 return;
             }
 
-            while (true)
+            AnsiConsole.Clear();
+            DisplayOrderDetails(order);
+
+            var actionPrompt = CreateContextualActionPrompt(order.Status);
+            if (actionPrompt == null)
             {
-                AnsiConsole.Clear();
-                DisplayOrderDetails(order);
-
-                var actionMenu = CreateContextualActionMenu(order.Status);
-                if (actionMenu == null) // Không có hành động nào
-                {
-                    AnsiConsole.MarkupLine("\n[dim]Đơn hàng này đã được xử lý. Nhấn phím bất kỳ để quay lại.[/]");
-                    Console.ReadKey();
-                    return;
-                }
-
-                AnsiConsole.Write(actionMenu);
-                var choice = AnsiConsole.Ask<string>("\n> Chọn hành động cho đơn hàng này:").ToLower();
-                var adminId = _sessionService.CurrentUser.UserID;
-
-                bool shouldReturn = false;
-                switch (order.Status)
-                {
-                    case "PendingAdminApproval":
-                        if (choice == "1") await HandleConfirmOrder(orderId, adminId);
-                        else if (choice == "2") await HandleRejectOrder(orderId, adminId);
-                        if (choice == "1" || choice == "2") shouldReturn = true;
-                        break;
-
-                    case "CancellationRequested":
-                        if (choice == "1") await HandleApproveCancellation(orderId, adminId);
-                        if (choice == "1") shouldReturn = true;
-                        break;
-                }
-
-                if (choice == "0") shouldReturn = true;
-                if (shouldReturn) return;
-            }
-        }
-
-        #region Action Handlers & Helpers
-        private async Task HandleConfirmOrder(int orderId, int adminId)
-        {
-            var response = await _orderService.ConfirmOrderAsync(orderId, adminId);
-            string color = response.IsSuccess ? "green" : "red";
-            AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
-            Console.ReadKey();
-        }
-
-        private async Task HandleRejectOrder(int orderId, int adminId)
-        {
-            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do từ chối[/] đơn hàng:");
-            if (string.IsNullOrWhiteSpace(reason))
-            {
-                AnsiConsole.MarkupLine("[red]Lý do không được để trống.[/]");
+                AnsiConsole.MarkupLine("\n[dim]Đơn hàng này đã được xử lý. Nhấn phím bất kỳ để quay lại.[/]");
                 Console.ReadKey();
                 return;
             }
-            var response = await _orderService.RejectOrderAsync(orderId, adminId, reason);
-            string color = response.IsSuccess ? "green" : "red";
-            AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
+
+            var actionChoice = AnsiConsole.Prompt(actionPrompt);
+            if (actionChoice == "Quay lại") return;
+
+            var adminId = _sessionService.CurrentUser.UserID;
+            ServiceResponse response = new(false, "Hành động không xác định.");
+
+            switch (actionChoice)
+            {
+                case "Xác nhận đơn hàng":
+                    response = await _orderService.ConfirmOrderAsync(orderId, adminId);
+                    break;
+                case "Từ chối đơn hàng":
+                    var reason = AnsiConsole.Ask<string>("Nhập [green]lý do từ chối[/]:");
+                    if (!string.IsNullOrWhiteSpace(reason))
+                    {
+                        response = await _orderService.RejectOrderAsync(orderId, adminId, reason);
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[red]Lý do không được để trống.[/]");
+                        Console.ReadKey();
+                    }
+                    break;
+                case "Chấp thuận yêu cầu hủy":
+                    response = await _orderService.ApproveCancellationAsync(orderId, adminId);
+                    break;
+            }
+
+            AnsiConsole.MarkupLine($"\n[{(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]");
             Console.ReadKey();
         }
 
-        private async Task HandleApproveCancellation(int orderId, int adminId)
+        #region Helper Methods
+
+        private SelectionPrompt<string>? CreateContextualActionPrompt(string? status)
         {
-            var response = await _orderService.ApproveCancellationAsync(orderId, adminId);
-            string color = response.IsSuccess ? "green" : "red";
-            AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
-            Console.ReadKey();
+            var prompt = new SelectionPrompt<string>().Title("[bold yellow]Hành động có sẵn cho đơn hàng này:[_]");
+            switch (status)
+            {
+                case "PendingAdminApproval":
+                    prompt.AddChoices("Xác nhận đơn hàng", "Từ chối đơn hàng", "Quay lại");
+                    return prompt;
+                case "CancellationRequested":
+                    prompt.AddChoices("Chấp thuận yêu cầu hủy", "Quay lại");
+                    return prompt;
+                default:
+                    return null;
+            }
         }
 
-        private Panel? CreateContextualActionMenu(string status)
-        {
-            var grid = new Grid().AddColumn();
-            bool hasAction = false;
-
-            if (status == "PendingAdminApproval")
-            {
-                grid.AddRow("[green][1] Xác nhận đơn hàng[/]");
-                grid.AddRow("[red][2] Từ chối đơn hàng[/]");
-                hasAction = true;
-            }
-            else if (status == "CancellationRequested")
-            {
-                grid.AddRow("[green][1] Chấp thuận yêu cầu hủy[/]");
-                hasAction = true;
-            }
-
-            if (!hasAction) return null;
-
-            grid.AddRow("[grey][0] Quay lại danh sách[/]");
-            return new Panel(grid).Header(new PanelHeader("[yellow]HÀNH ĐỘNG[/]").Centered());
-        }
-
-        private Markup FormatOrderStatus(string status)
+        private Markup FormatOrderStatus(string? status)
         {
             return status switch
             {
-                "PendingAdminApproval" => new Markup("[yellow]WAIT[/]"),
-                "Processing" => new Markup("[green]DONE[/]"),
-                "Cancelled" => new Markup("[red]CANCELLED[/]"),
-                "RejectedByAdmin" => new Markup("[red]CANCELLED[/]"),
+                "PendingAdminApproval" => new Markup("[yellow]WAITING[/]"),
+                "Processing" => new Markup("[green]PROCESSING[/]"),
+                "Completed" => new Markup("[blue]COMPLETED[/]"),
+                "RejectedByAdmin" => new Markup("[red]REJECTED[/]"),
                 "CustomerCancelled" => new Markup("[red]CANCELLED[/]"),
                 "CancellationRequested" => new Markup("[orange1]REQ_CANCEL[/]"),
-                _ => new Markup(Markup.Escape(status))
+                _ => new Markup(Markup.Escape(status ?? "N/A"))
             };
         }
 
         private void DisplayOrderDetails(Order order)
         {
-            // Panel thông tin chung
-            var infoPanel = new Panel(
-                new Grid()
-                    .AddColumn().AddColumn()
-                    .AddRow("[bold]Mã đơn:[/]", Markup.Escape(order.OrderCode))
-                    .AddRow("[bold]Khách hàng:[/]", Markup.Escape(order.User.FullName))
-                    .AddRow("[bold]Ngày đặt:[/]", order.OrderDate.ToString("g"))
-                    .AddRow("[bold]Trạng thái:[/]", FormatOrderStatus(order.Status).ToString())
-                    .AddRow("[bold]Địa chỉ giao:[/]", Markup.Escape(order.ShippingAddress))
-                    .AddRow("[bold]SĐT Nhận:[/]", Markup.Escape(order.ShippingPhone))
-            )
-            .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
-            .Expand();
+            var infoGrid = new Grid();
+            infoGrid.AddColumn();
+            infoGrid.AddColumn();
+            infoGrid.AddRow("[bold]Mã đơn:[/]", Markup.Escape(order.OrderCode));
+            infoGrid.AddRow("[bold]Khách hàng:[/]", Markup.Escape(order.User?.FullName ?? "N/A"));
+            infoGrid.AddRow("[bold]Ngày đặt:[/]", Markup.Escape(order.OrderDate.ToString("g")));
+            infoGrid.AddRow("[bold]Trạng thái:[/]", Markup.Escape(FormatOrderStatus(order.Status).ToString()));
+            infoGrid.AddRow("[bold]Địa chỉ giao:[/]", Markup.Escape(order.ShippingAddress));
+            infoGrid.AddRow("[bold]SĐT Nhận:[/]", Markup.Escape(order.ShippingPhone));
+
+            var infoPanel = new Panel(infoGrid)
+                .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
+                .Expand();
             AnsiConsole.Write(infoPanel);
 
-            // Bảng chi tiết sản phẩm
             var productTable = new Table().Expand().Border(TableBorder.Rounded);
+            productTable.Title = new TableTitle("Sản phẩm trong đơn");
             productTable.AddColumn("Sản phẩm");
             productTable.AddColumn("Size");
             productTable.AddColumn("SL");
@@ -265,8 +254,8 @@ namespace Project1_VTCA.UI.Admin
             {
                 productTable.AddRow(
                     Markup.Escape(detail.Product.Name),
-                    detail.Size.ToString(),
-                    detail.Quantity.ToString(),
+                    Markup.Escape(detail.Size.ToString()),
+                    Markup.Escape(detail.Quantity.ToString()),
                     $"{detail.UnitPrice:N0} VNĐ",
                     $"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]"
                 );
@@ -277,6 +266,10 @@ namespace Project1_VTCA.UI.Admin
             if (!string.IsNullOrEmpty(order.CustomerCancellationReason))
             {
                 AnsiConsole.MarkupLine($"[bold orange1]Lý do khách hủy:[/] [italic]{Markup.Escape(order.CustomerCancellationReason)}[/]");
+            }
+            if (!string.IsNullOrEmpty(order.AdminDecisionReason))
+            {
+                AnsiConsole.MarkupLine($"[bold red]Lý do Admin từ chối:[/] [italic]{Markup.Escape(order.AdminDecisionReason)}[/]");
             }
         }
         #endregion

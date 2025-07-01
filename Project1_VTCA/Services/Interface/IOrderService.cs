@@ -19,7 +19,8 @@ namespace Project1_VTCA.Services.Interface
         Task<ServiceResponse> ConfirmOrderAsync(int orderId);
 
         // Admin-specific methods
-        Task<List<Order>> GetOrdersForAdminAsync(string? statusFilter = null);
+        Task<(List<Order> Orders, int TotalPages)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize);
+
         Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId);
         Task<ServiceResponse> RejectOrderAsync(int orderId, int adminId, string reason);
         Task<ServiceResponse> ApproveCancellationAsync(int orderId, int adminId);

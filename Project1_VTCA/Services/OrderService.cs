@@ -184,19 +184,18 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Đã xác nhận đơn hàng thành công.");
         }
         #endregion
-        
+
 
         #region Admin Methods
-        public async Task<List<Order>> GetOrdersForAdminAsync(string? statusFilter = null)
+        public async Task<(List<Order> Orders, int TotalPages)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize)
         {
             var query = _context.Orders
-                .Include(o => o.User) // Lấy thông tin khách hàng
+                .Include(o => o.User)
                 .OrderByDescending(o => o.OrderDate)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
-                // Bộ lọc đặc biệt cho các đơn hàng cần xử lý
                 if (statusFilter == "ActionRequired")
                 {
                     query = query.Where(o => o.Status == "PendingAdminApproval" || o.Status == "CancellationRequested");
@@ -207,7 +206,15 @@ namespace Project1_VTCA.Services
                 }
             }
 
-            return await query.ToListAsync();
+            var totalOrders = await query.CountAsync();
+            var totalPages = (int)System.Math.Ceiling(totalOrders / (double)pageSize);
+
+            var orders = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (orders, totalPages);
         }
 
         public async Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId)
