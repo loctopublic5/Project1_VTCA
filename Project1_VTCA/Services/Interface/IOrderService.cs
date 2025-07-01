@@ -6,10 +6,10 @@ namespace Project1_VTCA.Services.Interface
 {
     public interface IOrderService
     {
+        // Customer-specific methods
         Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod);
         decimal CalculateShippingFee(int totalQuantity);
 
-        // NÂNG CẤP: Thay đổi chữ ký để hỗ trợ phân trang
         Task<(List<Order> Orders, int TotalPages)> GetOrdersAsync(int userId, string? statusFilter, int pageNumber, int pageSize);
 
         Task<Order?> GetOrderByIdAsync(int orderId, int userId);
@@ -17,5 +17,11 @@ namespace Project1_VTCA.Services.Interface
 
         Task<ServiceResponse> ApproveCancellationAsync(int orderId);
         Task<ServiceResponse> ConfirmOrderAsync(int orderId);
+
+        // Admin-specific methods
+        Task<List<Order>> GetOrdersForAdminAsync(string? statusFilter = null);
+        Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId);
+        Task<ServiceResponse> RejectOrderAsync(int orderId, int adminId, string reason);
+        Task<ServiceResponse> ApproveCancellationAsync(int orderId, int adminId);
     }
 }

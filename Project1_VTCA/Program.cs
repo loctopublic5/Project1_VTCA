@@ -6,6 +6,8 @@ using Project1_VTCA.Data;
 using Project1_VTCA.Services;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI;
+using Project1_VTCA.UI.Admin.Interface;
+using Project1_VTCA.UI.Admin;
 using Project1_VTCA.UI.Draw;
 using Project1_VTCA.UI.Interface;
 using Spectre.Console;
@@ -52,6 +54,8 @@ class Program
         builder.Services.AddTransient<IMyWalletMenu, MyWalletMenu>(); 
         builder.Services.AddTransient<IOrderHistoryMenu, OrderHistoryMenu>();
         builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
+        builder.Services.AddTransient<IAdminOrderMenu, AdminOrderMenu>();
+
 
         using var host = builder.Build();
 
@@ -62,6 +66,7 @@ class Program
             var services = scope.ServiceProvider;
             try
             {
+               
                 var mainMenu = services.GetRequiredService<MainMenu>();
                 await mainMenu.Show();
             }

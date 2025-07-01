@@ -17,7 +17,7 @@ namespace Project1_VTCA.Migrations
             IF NOT EXISTS (SELECT 1 FROM Users WHERE UserID = 1)
             BEGIN
                 INSERT INTO Users (UserID, Username, PasswordHash, FullName, PhoneNumber, Email, Gender, Role, IsActive, Balance, TotalSpending)
-                VALUES (1, 'admin', '03a3b022b6424cb8928545869429433158c3f443a53942468f731154563a5682', N'Quản Trị Viên', '0987654321', 'admin@shop.com', 'Unisex', 'Admin', 1, 0, 0);
+                VALUES (1, 'Admin25', '602e1baac1bdc4c6587dbe0f0a14a2c2737fe9718aa84e255db58e69142b6dec', N'Quản Trị Viên', '0987654321', 'admin@shop.com', 'Unisex', 'Admin', 1, 0, 0);
             END
 
             SET IDENTITY_INSERT Users OFF;

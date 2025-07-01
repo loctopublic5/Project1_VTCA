@@ -20,7 +20,7 @@ namespace Project1_VTCA.Services
 
         public async Task<AuthResult> LoginAsync(string username, string password)
         {
-            // Sửa lỗi so sánh không phân biệt hoa thường
+            
             var user = await _context.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
 
@@ -79,5 +79,6 @@ namespace Project1_VTCA.Services
             await _context.SaveChangesAsync();
             return new AuthResult(true, "[bold green]Cập nhật mật khẩu thành công! Vui lòng đăng nhập lại.[/]");
         }
+       
     }
 }

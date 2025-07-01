@@ -77,13 +77,14 @@ namespace Project1_VTCA.UI
                 var username = AnsiConsole.Ask<string>("Nhập [green]Username[/] (hoặc 'exit' để thoát):");
                 if (username.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    return; // Thoát ngay lập tức
+                    return; 
                 }
 
-                var password = AnsiConsole.Prompt(new TextPrompt<string>("Nhập [green]Password[/]:").Secret());
+                var password = AnsiConsole.Prompt(new TextPrompt<string>("Nhập [green]Password[/]:").Secret()).Trim();
 
                 var result = await _authService.LoginAsync(username, password);
                 AnsiConsole.MarkupLine($"\n{result.Message}");
+
 
                 if (result.IsSuccess)
                 {
