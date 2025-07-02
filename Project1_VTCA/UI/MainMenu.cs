@@ -1,7 +1,8 @@
 ﻿using Project1_VTCA.DTOs;
 using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Customer;
+using Project1_VTCA.UI.Customer.Interface;
 using Project1_VTCA.UI.Draw;
-using Project1_VTCA.UI.Interface;
 using Project1_VTCA.Utils;
 using Spectre.Console;
 using System;

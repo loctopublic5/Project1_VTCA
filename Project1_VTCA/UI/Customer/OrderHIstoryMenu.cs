@@ -1,13 +1,13 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Customer.Interface;
 using Project1_VTCA.UI.Draw;
-using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Customer
 {
     public class OrderHistoryMenu : IOrderHistoryMenu
     {
@@ -57,8 +57,7 @@ namespace Project1_VTCA.UI
                     case "3": currentFilter = "Processing"; break;
                     case "4": currentFilter = "CancellationRequested"; break;
                     case "5":
-                        
-                        currentFilter = "RejectedByAdmin|Cancelled";
+                        currentFilter = "RejectedByAdmin|Cancelled|CustomerCancelled";
                         break;
                     case "6": await HandleCancelOrder(); break;
                     case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
@@ -173,7 +172,7 @@ namespace Project1_VTCA.UI
                     new Markup(Markup.Escape(detail.Size.ToString())),
                     new Markup(Markup.Escape(detail.Quantity.ToString())),
                     new Markup($"{detail.UnitPrice:N0} VNĐ"),
-                    new Markup($"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]")
+                    new Markup($"[bold]{detail.UnitPrice * detail.Quantity:N0} VNĐ[/]")
                 );
             }
 

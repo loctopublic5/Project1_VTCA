@@ -5,15 +5,16 @@ using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
 using Project1_VTCA.Services;
 using Project1_VTCA.Services.Interface;
-using Project1_VTCA.UI;
 using Project1_VTCA.UI.Admin.Interface;
 using Project1_VTCA.UI.Admin;
 using Project1_VTCA.UI.Draw;
-using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Project1_VTCA.UI.Customer.Interface;
+using Project1_VTCA.UI.Customer;
+using Project1_VTCA.UI;
 
 class Program
 {

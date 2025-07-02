@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Customer.Interface;
 using Project1_VTCA.UI.Draw;
-using Project1_VTCA.UI.Interface;
 using Project1_VTCA.Utils;
 using Spectre.Console;
 using System;
@@ -11,7 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Customer
 {
     public class ProductMenu
     {
@@ -188,7 +188,7 @@ namespace Project1_VTCA.UI
             table.AddRow("[bold]Sản phẩm:[/]", Markup.Escape(product.Name));
             table.AddRow("[bold]Size đã chọn:[/]", $"[yellow]{selectedSize.Size}[/]");
             table.AddRow("[bold]Số lượng:[/]", $"[yellow]{quantity}[/]");
-            table.AddRow("[bold]Tổng cộng:[/]", $"[green]{(finalPrice * quantity):N0} VNĐ[/]");
+            table.AddRow("[bold]Tổng cộng:[/]", $"[green]{finalPrice * quantity:N0} VNĐ[/]");
             AnsiConsole.Write(new Panel(table).Header("XÁC NHẬN THÔNG TIN").Border(BoxBorder.Rounded));
 
             if (!AnsiConsole.Confirm("\n[bold]Xác nhận thêm vào giỏ hàng?[/]", defaultValue: true))

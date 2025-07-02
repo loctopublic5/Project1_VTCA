@@ -1,13 +1,13 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
-using Project1_VTCA.UI.Interface;
+using Project1_VTCA.UI.Customer.Interface;
 using Project1_VTCA.Utils;
 using Spectre.Console;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Customer
 {
     public class AddressMenu : IAddressMenu
     {
@@ -130,10 +130,10 @@ namespace Project1_VTCA.UI
         private async Task HandleAddAddress()
         {
             string addressDetail = AnsiConsole.Ask<string>("Nhập [green]Địa chỉ chi tiết[/] (số nhà, đường, phường/xã, hoặc '[red]exit[/]'):");
-            if (addressDetail.Equals("exit", System.StringComparison.OrdinalIgnoreCase)) return;
+            if (addressDetail.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
 
             string city = AnsiConsole.Ask<string>("Nhập [green]Tỉnh/Thành phố[/] (hoặc '[red]exit[/]'):");
-            if (city.Equals("exit", System.StringComparison.OrdinalIgnoreCase)) return;
+            if (city.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
 
             string userPhone = _sessionService.CurrentUser.PhoneNumber;
             string phone = AnsiConsole.Prompt(
@@ -141,7 +141,7 @@ namespace Project1_VTCA.UI
                     .AllowEmpty()
             );
 
-            if (phone.Equals("exit", System.StringComparison.OrdinalIgnoreCase)) return;
+            if (phone.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
 
             if (string.IsNullOrEmpty(phone))
             {

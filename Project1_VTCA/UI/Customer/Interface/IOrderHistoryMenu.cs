@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI.Interface
+namespace Project1_VTCA.UI.Customer.Interface
 {
     public interface IOrderHistoryMenu
     {

@@ -1,12 +1,12 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
-using Project1_VTCA.UI.Interface;
+using Project1_VTCA.UI.Customer.Interface;
 using Spectre.Console;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Customer
 {
     public class CheckoutMenu : ICheckoutMenu
     {
@@ -136,7 +136,7 @@ namespace Project1_VTCA.UI
                         .AddChoices(new[] { "Thanh toán khi nhận hàng (COD)", "Thanh toán ngay (trừ vào số dư)", "exit" })
                 );
 
-                if (paymentMethod.Equals("exit", System.StringComparison.OrdinalIgnoreCase)) return null;
+                if (paymentMethod.Equals("exit", StringComparison.OrdinalIgnoreCase)) return null;
 
                 if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
                 {
@@ -180,7 +180,7 @@ namespace Project1_VTCA.UI
                     Markup.Escape(item.Product.Name),
                     item.Size.ToString(),
                     item.Quantity.ToString(),
-                    $"{(unitPrice * item.Quantity):N0} VNĐ"
+                    $"{unitPrice * item.Quantity:N0} VNĐ"
                 );
             }
 

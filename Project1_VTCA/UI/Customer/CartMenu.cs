@@ -1,7 +1,7 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
+using Project1_VTCA.UI.Customer.Interface;
 using Project1_VTCA.UI.Draw;
-using Project1_VTCA.UI.Interface;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using System;
@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI
+namespace Project1_VTCA.UI.Customer
 {
     public class CartMenu : ICartMenu
     {
