@@ -1,6 +1,6 @@
 ﻿using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
-using Project1_VTCA.UI.Customer.Interface;
+using Project1_VTCA.UI.Customer.Interfaces;
 using Spectre.Console;
 using System.Collections.Generic;
 using System.Linq;

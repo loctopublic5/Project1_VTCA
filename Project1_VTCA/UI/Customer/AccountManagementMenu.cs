@@ -1,4 +1,4 @@
-﻿using Project1_VTCA.UI.Customer.Interface;
+﻿using Project1_VTCA.UI.Customer.Interfaces;
 using Spectre.Console;
 using System.Threading.Tasks;
 
