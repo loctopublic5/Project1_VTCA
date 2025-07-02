@@ -58,82 +58,139 @@ namespace Project1_VTCA.Services
 
         public async Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod)
         {
+            if (!items.Any())
+            {
+                return new ServiceResponse(false, "Không có sản phẩm nào để tạo đơn hàng.");
+            }
+
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
+                // Chỉ cần một transaction để tạo Order và OrderDetail
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    // KIỂM TRA SƠ BỘ TỒN KHO
+                    foreach (var item in items)
+                    {
+                        var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == item.ProductID && ps.Size == item.Size);
+                        if (productSize == null || (productSize.QuantityInStock ?? 0) < item.Quantity)
+                        {
+                            // Không trừ kho, chỉ thông báo
+                            throw new InvalidOperationException($"Không đủ hàng cho sản phẩm {item.Product.Name} - Size {item.Size}.");
+                        }
+                    }
+
                     var now = DateTime.Now;
                     decimal subTotal = 0;
                     int totalQuantity = 0;
                     foreach (var item in items)
                     {
-                        var product = await _context.Products.FindAsync(item.ProductID);
-                        if (product == null) throw new InvalidOperationException($"Sản phẩm với ID {item.ProductID} không tồn tại.");
-                        var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
-                        subTotal += (discountedPrice ?? product.Price) * item.Quantity;
+                        var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(item.Product);
+                        subTotal += (discountedPrice ?? item.Product.Price) * item.Quantity;
                         totalQuantity += item.Quantity;
                     }
+
                     var shippingFee = CalculateShippingFee(totalQuantity);
                     var totalPrice = subTotal + shippingFee;
-                    var user = await _context.Users.FindAsync(userId);
-                    if (paymentMethod == "Thanh toán ngay (trừ vào số dư)" && user.Balance < totalPrice)
-                    {
-                        return new ServiceResponse(false, "Số dư không đủ để thực hiện giao dịch.");
-                    }
-                    if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
-                    {
-                        user.Balance -= totalPrice;
-                    }
+
                     var order = new Order
                     {
                         UserID = userId,
                         OrderCode = $"SNEAKER{now:yyyyMMddHHmmssfff}",
                         OrderDate = now,
-                        Status = "PendingAdminApproval",
+                        Status = "PendingAdminApproval", // Trạng thái chờ
                         TotalPrice = totalPrice,
                         ShippingAddress = shippingAddress,
                         ShippingPhone = shippingPhone,
-                        PaymentMethod = paymentMethod,
-                        AdminDecisionReason = null,
-                        CustomerCancellationReason = null
+                        PaymentMethod = paymentMethod
                     };
                     _context.Orders.Add(order);
                     await _context.SaveChangesAsync();
+
                     foreach (var item in items)
                     {
-                        var product = await _context.Products.FindAsync(item.ProductID);
-                        var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
+                        var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(item.Product);
                         var orderDetail = new OrderDetail
                         {
                             OrderID = order.OrderID,
                             ProductID = item.ProductID,
                             Size = item.Size,
                             Quantity = item.Quantity,
-                            UnitPrice = discountedPrice ?? product.Price
+                            UnitPrice = discountedPrice ?? item.Product.Price
                         };
                         _context.OrderDetails.Add(orderDetail);
-                        var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == item.ProductID && ps.Size == item.Size);
-                        if (productSize == null || (productSize.QuantityInStock ?? 0) < item.Quantity)
-                        {
-                            throw new InvalidOperationException($"Không đủ hàng cho sản phẩm {product.Name} - Size {item.Size}.");
-                        }
-                        productSize.QuantityInStock -= item.Quantity;
-                        var productToUpdate = await _context.Products.FindAsync(item.ProductID);
-                        if (productToUpdate != null)
-                        {
-                            productToUpdate.TotalQuantity -= item.Quantity;
-                        }
                     }
+
+                    // KHÔNG CÒN LOGIC TRỪ KHO Ở ĐÂY
+
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
                     return new ServiceResponse(true, order.OrderCode);
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
                     return new ServiceResponse(false, $"Lỗi hệ thống khi tạo đơn hàng: {ex.Message}");
+                }
+            });
+        }
+
+        // TÁI CẤU TRÚC: ConfirmOrderAsync giờ là nơi thực hiện nghiệp vụ chính
+        public async Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var order = await _context.Orders
+                        .Include(o => o.User)
+                        .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
+                        .FirstOrDefaultAsync(o => o.OrderID == orderId);
+
+                    if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
+                    if (order.Status != "PendingAdminApproval") return new ServiceResponse(false, "Đơn hàng đã được xử lý trước đó.");
+
+                    // BƯỚC 1: KIỂM TRA TỒN KHO LẦN CUỐI
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
+                        if (productSize == null || (productSize.QuantityInStock ?? 0) < detail.Quantity)
+                        {
+                            await transaction.RollbackAsync(); // Hủy bỏ ngay lập tức
+                            return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}. Đơn hàng không được xác nhận.");
+                        }
+                    }
+
+                    // BƯỚC 2: NẾU ĐỦ HÀNG, TIẾN HÀNH TRỪ KHO VÀ CẬP NHẬT
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        var productSize = await _context.ProductSizes.FirstAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
+                        productSize.QuantityInStock -= detail.Quantity;
+
+                        var product = await _context.Products.FirstAsync(p => p.ProductID == detail.ProductID);
+                        product.TotalQuantity -= detail.Quantity;
+                    }
+
+                    // BƯỚC 3: CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG VÀ CHI TIÊU CỦA USER
+                    order.Status = "Processing";
+                    order.ApprovedByAdminID = adminId;
+
+                    decimal subTotal = order.OrderDetails.Sum(od => od.UnitPrice * od.Quantity);
+                    order.User.TotalSpending += subTotal;
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new ServiceResponse(true, "Đã xác nhận và trừ kho thành công.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi xác nhận đơn hàng: {ex.Message}");
                 }
             });
         }
@@ -173,20 +230,289 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Đã phê duyệt hủy đơn hàng và hoàn tiền (nếu có).");
         }
 
-        public async Task<ServiceResponse> ConfirmOrderAsync(int orderId)
-        {
-            var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.OrderID == orderId);
-            if (order == null) return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
-            decimal subTotal = await _context.OrderDetails.Where(od => od.OrderID == orderId).SumAsync(od => od.UnitPrice * od.Quantity);
-            order.User.TotalSpending += subTotal;
-            order.Status = "Processing";
-            await _context.SaveChangesAsync();
-            return new ServiceResponse(true, "Đã xác nhận đơn hàng thành công.");
-        }
+        
         #endregion
 
 
         #region Admin Methods
+
+        #region Admin Methods 2
+
+        // --- PHƯƠNG THỨC MỚI: XỬ LÝ TỪNG PHẦN VÀ KIỂM TRA TỒN KHO ---
+        public async Task<ServiceResponse> AttemptToConfirmOrderAsync(int orderId, int adminId)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var order = await _context.Orders
+                        .Include(o => o.User)
+                        .Include(o => o.OrderDetails)
+                        .ThenInclude(od => od.Product)
+                        .FirstOrDefaultAsync(o => o.OrderID == orderId);
+
+                    if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
+                    if (order.Status != "PendingAdminApproval") return new ServiceResponse(false, "Đơn hàng đã được xử lý trước đó.");
+
+                    // BƯỚC KIỂM TRA TỒN KHO QUAN TRỌNG NHẤT
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
+                        if (productSize == null || (productSize.QuantityInStock ?? 0) < detail.Quantity)
+                        {
+                            await transaction.RollbackAsync();
+                            return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}");
+                        }
+                    }
+
+                    // Nếu tất cả sản phẩm đều đủ hàng, tiến hành xử lý
+                    order.Status = "Processing";
+                    order.ApprovedByAdminID = adminId;
+
+                    decimal subTotal = order.OrderDetails.Sum(od => od.UnitPrice * od.Quantity);
+                    order.User.TotalSpending += subTotal;
+
+                    // Trừ kho
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        var productSize = await _context.ProductSizes.FirstAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
+                        productSize.QuantityInStock -= detail.Quantity;
+                        var product = await _context.Products.FirstAsync(p => p.ProductID == detail.ProductID);
+                        product.TotalQuantity -= detail.Quantity;
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new ServiceResponse(true, "Xác nhận thành công.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống: {ex.Message}");
+                }
+            });
+        }
+
+        // ... (Các phương thức khác giữ nguyên)
+
+        #endregion
+
+        #region Admin Methods 1
+
+        public async Task<ServiceResponse> BulkConfirmOrdersAsync(List<int> orderIds, int adminId)
+        {
+            if (!orderIds.Any()) return new ServiceResponse(false, "Không có đơn hàng nào được chọn.");
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var ordersToProcess = await _context.Orders
+                        .Include(o => o.User)
+                        .Where(o => orderIds.Contains(o.OrderID) && o.Status == "PendingAdminApproval")
+                        .ToListAsync();
+
+                    if (ordersToProcess.Count != orderIds.Count)
+                    {
+                        await transaction.RollbackAsync();
+                        return new ServiceResponse(false, "Một vài đơn hàng không hợp lệ hoặc đã được xử lý. Vui lòng thử lại.");
+                    }
+
+                    foreach (var order in ordersToProcess)
+                    {
+                        order.Status = "Processing";
+                        order.ApprovedByAdminID = adminId;
+                        decimal subTotal = await _context.OrderDetails
+                            .Where(od => od.OrderID == order.OrderID)
+                            .SumAsync(od => od.UnitPrice * od.Quantity);
+                        order.User.TotalSpending += subTotal;
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return new ServiceResponse(true, $"Đã xác nhận thành công {ordersToProcess.Count} đơn hàng.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi xác nhận hàng loạt: {ex.Message}");
+                }
+            });
+        }
+
+        public async Task<ServiceResponse> BulkRejectOrdersAsync(List<int> orderIds, int adminId, string reason)
+        {
+            if (!orderIds.Any()) return new ServiceResponse(false, "Không có đơn hàng nào được chọn.");
+            if (string.IsNullOrWhiteSpace(reason)) return new ServiceResponse(false, "Lý do hủy không được để trống.");
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var ordersToReject = await _context.Orders
+                        .Include(o => o.User)
+                        .Where(o => orderIds.Contains(o.OrderID) && o.Status == "PendingAdminApproval")
+                        .ToListAsync();
+
+                    if (ordersToReject.Count != orderIds.Count)
+                    {
+                        await transaction.RollbackAsync();
+                        return new ServiceResponse(false, "Một vài đơn hàng không hợp lệ hoặc đã được xử lý. Vui lòng thử lại.");
+                    }
+
+                    foreach (var order in ordersToReject)
+                    {
+                        // 1. Cập nhật trạng thái và lý do
+                        order.Status = "RejectedByAdmin";
+                        order.ApprovedByAdminID = adminId;
+                        order.AdminDecisionReason = reason;
+
+                        // 2. Hoàn tiền (nếu cần)
+                        if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                        {
+                            order.User.Balance += order.TotalPrice;
+                        }
+
+                        // 3. QUAN TRỌNG: KHÔNG HOÀN KHO
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return new ServiceResponse(true, $"Đã hủy thành công {ordersToReject.Count} đơn hàng.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi hủy hàng loạt: {ex.Message}");
+                }
+            });
+        }
+
+        public async Task<ServiceResponse> BulkApproveCancellationsAsync(List<int> orderIds, int adminId)
+        {
+            if (!orderIds.Any()) return new ServiceResponse(false, "Không có đơn hàng nào được chọn.");
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var ordersToProcess = await _context.Orders
+                        .Include(o => o.User)
+                        .Where(o => orderIds.Contains(o.OrderID) && o.Status == "CancellationRequested")
+                        .ToListAsync();
+
+                    if (ordersToProcess.Count != orderIds.Count)
+                    {
+                        await transaction.RollbackAsync();
+                        return new ServiceResponse(false, "Một vài đơn hàng không hợp lệ hoặc đã được xử lý. Vui lòng thử lại.");
+                    }
+
+                    foreach (var order in ordersToProcess)
+                    {
+                        // 1. Cập nhật trạng thái
+                        order.Status = "Cancelled"; // Hoặc "CustomerCancelled"
+                        order.ApprovedByAdminID = adminId;
+
+                        // 2. Hoàn tiền nếu cần
+                        if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                        {
+                            order.User.Balance += order.TotalPrice;
+                        }
+
+                        // 3. HOÀN LẠI CHI TIÊU ĐÃ GHI NHẬN (NẾU CÓ)
+                        // Giả sử logic cũ đã cộng TotalSpending khi xác nhận
+                        // Đây là bước sửa sai cho logic đó.
+                        decimal subTotal = await _context.OrderDetails
+                            .Where(od => od.OrderID == order.OrderID)
+                            .SumAsync(od => od.UnitPrice * od.Quantity);
+                        order.User.TotalSpending -= subTotal;
+
+                        // 4. QUY TẮC VÀNG: TUYỆT ĐỐI KHÔNG HOÀN KHO CHO CÁC ĐƠN HÀNG NÀY
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return new ServiceResponse(true, $"Đã duyệt hủy thành công {ordersToProcess.Count} đơn hàng.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi duyệt hủy hàng loạt: {ex.Message}");
+                }
+            });
+        }
+
+        private async Task<ServiceResponse> ProcessBulkCancellation(List<int> orderIds, int adminId, string finalStatus, string? adminReason)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var ordersToCancel = await _context.Orders
+                        .Include(o => o.User)
+                        .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
+                        .Where(o => orderIds.Contains(o.OrderID))
+                        .ToListAsync();
+
+                    var validStatuses = new[] { "PendingAdminApproval", "CancellationRequested" };
+                    var invalidOrders = ordersToCancel.Where(o => !validStatuses.Contains(o.Status)).ToList();
+                    if (invalidOrders.Any())
+                    {
+                        await transaction.RollbackAsync();
+                        return new ServiceResponse(false, $"Các đơn hàng ID: {string.Join(", ", invalidOrders.Select(o => o.OrderID))} không ở trạng thái hợp lệ để xử lý.");
+                    }
+
+                    foreach (var order in ordersToCancel)
+                    {
+                        order.Status = finalStatus;
+                        order.ApprovedByAdminID = adminId;
+                        if (!string.IsNullOrEmpty(adminReason))
+                        {
+                            order.AdminDecisionReason = adminReason;
+                        }
+
+                        if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                        {
+                            order.User.Balance += order.TotalPrice;
+                        }
+
+                        foreach (var detail in order.OrderDetails)
+                        {
+                            var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
+                            if (productSize != null)
+                            {
+                                productSize.QuantityInStock = (productSize.QuantityInStock ?? 0) + detail.Quantity;
+                            }
+                            detail.Product.TotalQuantity += detail.Quantity;
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new ServiceResponse(true, $"Đã xử lý thành công {ordersToCancel.Count} đơn hàng.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi xử lý hàng loạt: {ex.Message}");
+                }
+            });
+        }
+
+        #endregion
+
         public async Task<(List<Order> Orders, int TotalPages)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize)
         {
             var query = _context.Orders
@@ -196,6 +522,7 @@ namespace Project1_VTCA.Services
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
+                // NÂNG CẤP: Bổ sung bộ lọc cho các đơn hàng đang chờ hủy
                 if (statusFilter == "ActionRequired")
                 {
                     query = query.Where(o => o.Status == "PendingAdminApproval" || o.Status == "CancellationRequested");
@@ -207,7 +534,7 @@ namespace Project1_VTCA.Services
             }
 
             var totalOrders = await query.CountAsync();
-            var totalPages = (int)System.Math.Ceiling(totalOrders / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalOrders / (double)pageSize);
 
             var orders = await query
                 .Skip((pageNumber - 1) * pageSize)
@@ -217,7 +544,7 @@ namespace Project1_VTCA.Services
             return (orders, totalPages);
         }
 
-        public async Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId)
+        public async Task<ServiceResponse> ConfirmOrderAsync(int orderId)
         {
             var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.OrderID == orderId);
             if (order == null) return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
@@ -230,7 +557,6 @@ namespace Project1_VTCA.Services
                 try
                 {
                     order.Status = "Processing";
-                    order.ApprovedByAdminID = adminId;
 
                     // Cập nhật TotalSpending cho khách hàng
                     decimal subTotal = await _context.OrderDetails
@@ -250,6 +576,7 @@ namespace Project1_VTCA.Services
                 }
             });
         }
+
 
         public async Task<ServiceResponse> RejectOrderAsync(int orderId, int adminId, string reason)
         {

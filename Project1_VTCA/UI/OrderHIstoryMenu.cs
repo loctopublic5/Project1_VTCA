@@ -56,7 +56,10 @@ namespace Project1_VTCA.UI
                     case "2": currentFilter = "PendingAdminApproval"; break;
                     case "3": currentFilter = "Processing"; break;
                     case "4": currentFilter = "CancellationRequested"; break;
-                    case "5": currentFilter = "Cancelled"; break;
+                    case "5":
+                        
+                        currentFilter = "RejectedByAdmin|Cancelled";
+                        break;
                     case "6": await HandleCancelOrder(); break;
                     case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
                     case "p": if (pageNumber > 1) pageNumber--; break; // Previous page
@@ -93,9 +96,10 @@ namespace Project1_VTCA.UI
                 "PendingAdminApproval" => new Markup("[yellow]WAIT[/]"),
                 "Processing" => new Markup("[green]DONE[/]"),
                 "Completed" => new Markup("[green]DONE[/]"),
-                "RejectedByAdmin" => new Markup("[red]CANCELLED[/]"),
+                "RejectedByAdmin" => new Markup("[red]REJECTED[/]"),
                 "CustomerCancelled" => new Markup("[red]CANCELLED[/]"),
                 "CancellationRequested" => new Markup("[orange1]REQ_CANCEL[/]"),
+                "Cancelled" => new Markup("[red]CANCELLED[/]"),
                 _ => new Markup(Markup.Escape(status))
             };
         }
