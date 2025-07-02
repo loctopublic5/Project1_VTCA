@@ -18,7 +18,8 @@ namespace Project1_VTCA.Services.Interface
         Task<ServiceResponse> ApproveCancellationAsync(int orderId);
         Task<ServiceResponse> ConfirmOrderAsync(int orderId);
 
-        // Admin-specific methods
+
+
         Task<(List<Order> Orders, int TotalPages)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize);
         Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId);
         Task<ServiceResponse> RejectOrderAsync(int orderId, int adminId, string reason);
@@ -28,7 +29,8 @@ namespace Project1_VTCA.Services.Interface
         Task<ServiceResponse> BulkConfirmOrdersAsync(List<int> orderIds, int adminId);
         Task<ServiceResponse> BulkRejectOrdersAsync(List<int> orderIds, int adminId, string reason);
 
-
+        
         Task<ServiceResponse> AttemptToConfirmOrderAsync(int orderId, int adminId);
+
     }
 }

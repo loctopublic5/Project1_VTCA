@@ -4,7 +4,7 @@ using Project1_VTCA.UI.Customer.Interfaces;
 using Spectre.Console;
 using System.Threading.Tasks;
 
-namespace Project1_VTCA.UI.Customer
+namespace Project1_VTCA.UI.Admin
 {
     public class AdminMenu : IAdminMenu
     {
@@ -31,7 +31,7 @@ namespace Project1_VTCA.UI.Customer
                         "Quản lý Đơn hàng",
                         "Quản lý Sản phẩm (sắp có)",
                         "Quản lý Khách hàng (sắp có)",
-                        "Đăng xuất"
+                        "[red]Đăng xuất[/]"
                     })
                 );
 
@@ -48,7 +48,7 @@ namespace Project1_VTCA.UI.Customer
                         AnsiConsole.MarkupLine("[yellow]Chức năng đang được xây dựng.[/]");
                         Console.ReadKey();
                         break;
-                    case "Đăng xuất":
+                    case "[red]Đăng xuất[/]":
                         _sessionService.LogoutUser();
                         AnsiConsole.MarkupLine("\n[green]Bạn đã đăng xuất khỏi tài khoản Admin.[/]");
                         Console.ReadKey();

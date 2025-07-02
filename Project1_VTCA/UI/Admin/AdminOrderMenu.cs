@@ -57,6 +57,7 @@ namespace Project1_VTCA.UI.Admin
                     case "0":
                         return;
                 }
+                
             }
         }
 
@@ -102,12 +103,26 @@ namespace Project1_VTCA.UI.Admin
 
                 if (choice == "0") break;
 
-                // Xử lý lệnh điều hướng trang trực tiếp
+                
                 if (choice.StartsWith("p."))
                 {
                     if (int.TryParse(choice.AsSpan(2), out int page) && page > 0 && page <= totalPages)
                     {
                         currentPage = page;
+                    }
+                    continue;
+                }
+
+                else if (choice.StartsWith("or."))
+                {
+                    if (int.TryParse(choice.AsSpan(3), out int orderId))
+                    {
+                        await HandleViewOrderDetailsAsync(orderId);
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[red]Lỗi: Cú pháp lệnh không hợp lệ.[/]");
+                        Console.ReadKey();
                     }
                     continue;
                 }
@@ -129,6 +144,7 @@ namespace Project1_VTCA.UI.Admin
                         if (currentPage > 1) currentPage--;
                         filterChanged = false;
                         break;
+
                     default:
                         filterChanged = false;
                         break;
@@ -154,8 +170,9 @@ namespace Project1_VTCA.UI.Admin
                 " 6. Đơn hàng đã được huỷ bởi bạn\n\n" +
                 "[bold]Điều hướng:[/]\n" +
                 "[dim] n - Trang sau\n" +
-                " p - Trang trước" +
-                " P.{số trang} - Đến trang bất kì[/]\n\n" +
+                " p - Trang trước\n" +
+                " P.{số trang} - Đến trang bất kì\n" +
+                " or.{id} - xem chi tiết đơn hàng[/]\n\n" +
                 " [red]0. Quay lại[/]"
             );
         }
@@ -464,7 +481,69 @@ namespace Project1_VTCA.UI.Admin
             return table;
         }
 
+        private async Task HandleViewOrderDetailsAsync(int orderId)
+        {
+            
+            var order = await _orderService.GetOrderByIdAsync(orderId, 0);
+            if (order == null)
+            {
+                AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy đơn hàng với ID này.[/]");
+                Console.ReadKey();
+                return;
+            }
 
+            AnsiConsole.Clear();
+            DisplayOrderDetails(order); 
+            AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để quay lại danh sách...[/]");
+            Console.ReadKey();
+        }
+
+        private void DisplayOrderDetails(Order order)
+        {
+            var infoPanel = new Panel(
+                new Grid()
+                    .AddColumn().AddColumn()
+                    .AddRow(new Markup("[bold]Mã đơn:[/]"), new Markup(Markup.Escape(order.OrderCode)))
+                    .AddRow(new Markup("[bold]Khách hàng:[/]"), new Markup(Markup.Escape(order.User?.FullName ?? "N/A")))
+                    .AddRow(new Markup("[bold]Ngày đặt:[/]"), new Markup(Markup.Escape(order.OrderDate.ToString("g"))))
+                    .AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status))
+                    .AddRow(new Markup("[bold]Địa chỉ giao:[/]"), new Markup(Markup.Escape(order.ShippingAddress)))
+                    .AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)))
+            )
+            .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
+            .Expand();
+            AnsiConsole.Write(infoPanel);
+
+            var productTable = new Table().Expand().Border(TableBorder.Rounded);
+            productTable.Title = new TableTitle("Sản phẩm trong đơn");
+            productTable.AddColumn("Sản phẩm");
+            productTable.AddColumn("Size");
+            productTable.AddColumn("SL");
+            productTable.AddColumn("Đơn giá");
+            productTable.AddColumn("Thành tiền");
+
+            foreach (var detail in order.OrderDetails)
+            {
+                productTable.AddRow(
+                    Markup.Escape(detail.Product.Name),
+                    Markup.Escape(detail.Size.ToString()),
+                    Markup.Escape(detail.Quantity.ToString()),
+                    $"{detail.UnitPrice:N0} VNĐ",
+                    $"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]"
+                );
+            }
+            AnsiConsole.Write(productTable);
+            AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
+
+            if (!string.IsNullOrEmpty(order.CustomerCancellationReason))
+            {
+                AnsiConsole.MarkupLine($"[bold orange1]Lý do khách hủy:[/] [italic]{Markup.Escape(order.CustomerCancellationReason)}[/]");
+            }
+            if (!string.IsNullOrEmpty(order.AdminDecisionReason))
+            {
+                AnsiConsole.MarkupLine($"[bold red]Lý do Admin từ chối:[/] [italic]{Markup.Escape(order.AdminDecisionReason)}[/]");
+            }
+        }
         private Markup FormatOrderStatus(string? status)
         {
             return status switch

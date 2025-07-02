@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Project1_VTCA.Services
 {
@@ -22,10 +23,20 @@ namespace Project1_VTCA.Services
         #region Customer Order Methods
         public async Task<Order?> GetOrderByIdAsync(int orderId, int userId)
         {
-            return await _context.Orders
+            var query = _context.Orders
+                .Include(o => o.User)
                 .Include(o => o.OrderDetails)
                 .ThenInclude(od => od.Product)
-                .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
+                .AsQueryable();
+
+            // Nếu userId khác 0, đây là yêu cầu từ Customer, cần kiểm tra quyền sở hữu
+            if (userId != 0)
+            {
+                query = query.Where(o => o.UserID == userId);
+            }
+
+            // Nếu userId là 0, bỏ qua bộ lọc UserID, cho phép Admin lấy bất kỳ đơn hàng nào
+            return await query.FirstOrDefaultAsync(o => o.OrderID == orderId);
         }
 
         public async Task<ServiceResponse> RequestCancellationAsync(int userId, int orderId, string reason)
@@ -240,13 +251,15 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Đã phê duyệt hủy đơn hàng và hoàn tiền (nếu có).");
         }
 
-        
+
         #endregion
 
 
         #region Admin Methods
 
         #region Admin Methods 2
+
+        
 
         // --- PHƯƠNG THỨC MỚI: XỬ LÝ TỪNG PHẦN VÀ KIỂM TRA TỒN KHO ---
         public async Task<ServiceResponse> AttemptToConfirmOrderAsync(int orderId, int adminId)
@@ -657,5 +670,6 @@ namespace Project1_VTCA.Services
             });
         }
         #endregion
+
     }
 }
