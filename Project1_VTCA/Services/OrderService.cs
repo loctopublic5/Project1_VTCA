@@ -199,11 +199,21 @@ namespace Project1_VTCA.Services
         {
             var query = _context.Orders
                 .Where(o => o.UserID == userId)
-                .OrderByDescending(o => o.OrderDate);
+                .OrderByDescending(o => o.OrderDate)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
-                query = (IOrderedQueryable<Order>)query.Where(o => o.Status == statusFilter);
+                // Nếu filter chứa dấu '|', tách chuỗi và lọc với nhiều trạng thái
+                if (statusFilter.Contains('|'))
+                {
+                    var statuses = statusFilter.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                    query = query.Where(o => statuses.Contains(o.Status));
+                }
+                else // Ngược lại, lọc như bình thường
+                {
+                    query = query.Where(o => o.Status == statusFilter);
+                }
             }
 
             var totalOrders = await query.CountAsync();
@@ -522,12 +532,18 @@ namespace Project1_VTCA.Services
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
-                // NÂNG CẤP: Bổ sung bộ lọc cho các đơn hàng đang chờ hủy
+                // Bộ lọc đặc biệt cho các đơn hàng cần xử lý
                 if (statusFilter == "ActionRequired")
                 {
                     query = query.Where(o => o.Status == "PendingAdminApproval" || o.Status == "CancellationRequested");
                 }
-                else
+                // Nếu filter chứa dấu '|', tách chuỗi và lọc với nhiều trạng thái
+                else if (statusFilter.Contains('|'))
+                {
+                    var statuses = statusFilter.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                    query = query.Where(o => statuses.Contains(o.Status));
+                }
+                else // Ngược lại, lọc theo một trạng thái duy nhất
                 {
                     query = query.Where(o => o.Status == statusFilter);
                 }

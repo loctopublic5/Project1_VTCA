@@ -52,8 +52,7 @@ namespace Project1_VTCA.UI.Admin
                         Console.ReadKey();
                         break;
                     case "4":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng đang được xây dựng.[/]");
-                        Console.ReadKey();
+                        await HandleFilterAndViewOrdersAsync();
                         break;
                     case "0":
                         return;
@@ -74,6 +73,96 @@ namespace Project1_VTCA.UI.Admin
                 " [red]0. Quay lại[/]"
             );
         }
+
+        #region Lọc và Xem đơn hàng
+        private async Task HandleFilterAndViewOrdersAsync()
+        {
+            string? currentFilter = null;
+            int currentPage = 1;
+            const int pageSize = 10;
+            int totalPages = 1;
+
+            while (true)
+            {
+                var (orders, calculatedTotalPages) = await _orderService.GetOrdersForAdminAsync(currentFilter, currentPage, pageSize);
+                totalPages = calculatedTotalPages;
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+
+                var menuContent = CreateFilterSideMenu();
+                var viewContent = CreateDetailedOrderTable(orders);
+                var notificationContent = new Markup($"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]. " +
+                                                     "[dim]Chọn bộ lọc hoặc dùng lệnh điều hướng.[/]");
+
+                _layout.Render(menuContent, viewContent, notificationContent);
+
+                var choice = AnsiConsole.Ask<string>("\n> Nhập lựa chọn:").ToLower();
+
+                if (choice == "0") break;
+
+                // Xử lý lệnh điều hướng trang trực tiếp
+                if (choice.StartsWith("p."))
+                {
+                    if (int.TryParse(choice.AsSpan(2), out int page) && page > 0 && page <= totalPages)
+                    {
+                        currentPage = page;
+                    }
+                    continue;
+                }
+
+                var filterChanged = true;
+                switch (choice)
+                {
+                    case "1": currentFilter = null; break;
+                    case "2": currentFilter = "PendingAdminApproval"; break;
+                    case "3": currentFilter = "Processing|Completed"; break;
+                    case "4": currentFilter = "CancellationRequested"; break;
+                    case "5": currentFilter = "CustomerCancelled|Cancelled"; break; // Gộp
+                    case "6": currentFilter = "RejectedByAdmin"; break; // Lọc mới
+                    case "n":
+                        if (currentPage < totalPages) currentPage++;
+                        filterChanged = false;
+                        break;
+                    case "p":
+                        if (currentPage > 1) currentPage--;
+                        filterChanged = false;
+                        break;
+                    default:
+                        filterChanged = false;
+                        break;
+                }
+
+                if (filterChanged)
+                {
+                    currentPage = 1;
+                }
+            }
+        }
+
+        private Markup CreateFilterSideMenu()
+        {
+            return new Markup(
+                "[bold yellow underline]LỌC ĐƠN HÀNG[/]\n\n" +
+                "[bold]Lọc theo trạng thái:[/]\n" +
+                " 1. Xem Tất cả\n" +
+                " 2. Đơn hàng Chờ duyệt\n" +
+                " 3. Đơn hàng Đã duyệt\n" +
+                " 4. Đơn hàng Chờ hủy\n" +
+                " 5. Đơn hàng Đã hủy\n" +
+                " 6. Đơn hàng đã được huỷ bởi bạn\n\n" +
+                "[bold]Điều hướng:[/]\n" +
+                "[dim] n - Trang sau\n" +
+                " p - Trang trước" +
+                " P.{số trang} - Đến trang bất kì[/]\n\n" +
+                " [red]0. Quay lại[/]"
+            );
+        }
+
+        
+        #endregion
+
         #region xác nhận đơn hàng
         private async Task HandleBulkConfirmFlowAsync()
         {
@@ -353,7 +442,7 @@ namespace Project1_VTCA.UI.Admin
         private Table CreateDetailedOrderTable(List<Order> batch)
         {
             var table = new Table().Expand().Border(TableBorder.Rounded);
-            table.Title = new TableTitle($"[yellow]Chi tiết {batch.Count} đơn hàng trong lô cần xử lý[/]");
+            table.Title = new TableTitle($"[yellow]Chi tiết {batch.Count} Danh sách đơn hàng[/]");
             table.AddColumn("ID");
             table.AddColumn("Mã Đơn");
             table.AddColumn("Khách hàng");
@@ -375,22 +464,18 @@ namespace Project1_VTCA.UI.Admin
             return table;
         }
 
-        private async Task HandleFilterAndViewOrdersAsync()
-        {
-            AnsiConsole.MarkupLine("[yellow]Chức năng Lọc và Xem đang được xây dựng.[/]");
-            Console.ReadKey();
-        }
 
         private Markup FormatOrderStatus(string? status)
         {
             return status switch
             {
-                "PendingAdminApproval" => new Markup("[yellow]WAITING[/]"),
-                "Processing" => new Markup("[green]PROCESSING[/]"),
-                "Completed" => new Markup("[blue]COMPLETED[/]"),
+                "PendingAdminApproval" => new Markup("[yellow]WAIT[/]"),
+                "Processing" => new Markup("[green]DONE[/]"),
+                "Completed" => new Markup("[green]DONE[/]"),
                 "RejectedByAdmin" => new Markup("[red]REJECTED[/]"),
                 "CustomerCancelled" => new Markup("[red]CANCELLED[/]"),
                 "CancellationRequested" => new Markup("[orange1]REQ_CANCEL[/]"),
+                "Cancelled" => new Markup("[red]CANCELLED[/]"),
                 _ => new Markup(Markup.Escape(status ?? "N/A"))
             };
         }
