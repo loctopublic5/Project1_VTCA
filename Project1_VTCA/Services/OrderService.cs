@@ -41,25 +41,57 @@ namespace Project1_VTCA.Services
 
         public async Task<ServiceResponse> RequestCancellationAsync(int userId, int orderId, string reason)
         {
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
-            if (order == null)
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                return new ServiceResponse(false, "Không tìm thấy đơn hàng với ID đã nhập.");
-            }
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var order = await _context.Orders
+                        .Include(o => o.User)
+                        .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
 
-            if (order.Status != "PendingAdminApproval")
-            {
-                return new ServiceResponse(false, "Chỉ có thể yêu cầu hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
-            }
+                    if (order == null)
+                    {
+                        return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
+                    }
 
-            order.Status = "CancellationRequested";
-            order.CustomerCancellationReason = reason;
-            await _context.SaveChangesAsync();
+                    if (order.Status != "PendingAdminApproval")
+                    {
+                        return new ServiceResponse(false, "Chỉ có thể hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
+                    }
 
-            return new ServiceResponse(true, "Yêu cầu hủy đơn hàng đã được gửi thành công.");
+                    // 1. Cập nhật trạng thái tức thì
+                    order.Status = "CustomerCancelled";
+                    order.CustomerCancellationReason = reason;
+
+                    // 2. Hoàn tiền ngay lập tức (nếu có)
+                    if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                    {
+                        order.User.Balance += order.TotalPrice;
+                        // Hoàn lại chi tiêu đã ghi nhận (nếu có, để phòng ngừa)
+                        decimal subTotal = await _context.OrderDetails
+                            .Where(od => od.OrderID == orderId)
+                            .SumAsync(od => od.UnitPrice * od.Quantity);
+                        order.User.TotalSpending -= subTotal;
+                    }
+
+                    // 3. TUYỆT ĐỐI KHÔNG HOÀN KHO
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new ServiceResponse(true, "Đã hủy đơn hàng thành công.");
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi hủy đơn hàng: {ex.Message}");
+                }
+            });
         }
 
-      
+
         public decimal CalculateShippingFee(int totalQuantity)
         {
             if (totalQuantity <= 5) return 20000;
@@ -238,18 +270,7 @@ namespace Project1_VTCA.Services
             return (orders, totalPages);
         }
 
-        public async Task<ServiceResponse> ApproveCancellationAsync(int orderId)
-        {
-            var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.OrderID == orderId);
-            if (order == null) return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
-            if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
-            {
-                order.User.Balance += order.TotalPrice;
-            }
-            order.Status = "Cancelled";
-            await _context.SaveChangesAsync();
-            return new ServiceResponse(true, "Đã phê duyệt hủy đơn hàng và hoàn tiền (nếu có).");
-        }
+       
 
 
         #endregion
@@ -418,61 +439,7 @@ namespace Project1_VTCA.Services
             });
         }
 
-        public async Task<ServiceResponse> BulkApproveCancellationsAsync(List<int> orderIds, int adminId)
-        {
-            if (!orderIds.Any()) return new ServiceResponse(false, "Không có đơn hàng nào được chọn.");
-
-            var strategy = _context.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
-            {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
-                {
-                    var ordersToProcess = await _context.Orders
-                        .Include(o => o.User)
-                        .Where(o => orderIds.Contains(o.OrderID) && o.Status == "CancellationRequested")
-                        .ToListAsync();
-
-                    if (ordersToProcess.Count != orderIds.Count)
-                    {
-                        await transaction.RollbackAsync();
-                        return new ServiceResponse(false, "Một vài đơn hàng không hợp lệ hoặc đã được xử lý. Vui lòng thử lại.");
-                    }
-
-                    foreach (var order in ordersToProcess)
-                    {
-                        // 1. Cập nhật trạng thái
-                        order.Status = "Cancelled"; // Hoặc "CustomerCancelled"
-                        order.ApprovedByAdminID = adminId;
-
-                        // 2. Hoàn tiền nếu cần
-                        if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
-                        {
-                            order.User.Balance += order.TotalPrice;
-                        }
-
-                        // 3. HOÀN LẠI CHI TIÊU ĐÃ GHI NHẬN (NẾU CÓ)
-                        // Giả sử logic cũ đã cộng TotalSpending khi xác nhận
-                        // Đây là bước sửa sai cho logic đó.
-                        decimal subTotal = await _context.OrderDetails
-                            .Where(od => od.OrderID == order.OrderID)
-                            .SumAsync(od => od.UnitPrice * od.Quantity);
-                        order.User.TotalSpending -= subTotal;
-
-                        // 4. QUY TẮC VÀNG: TUYỆT ĐỐI KHÔNG HOÀN KHO CHO CÁC ĐƠN HÀNG NÀY
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return new ServiceResponse(true, $"Đã duyệt hủy thành công {ordersToProcess.Count} đơn hàng.");
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return new ServiceResponse(false, $"Lỗi hệ thống khi duyệt hủy hàng loạt: {ex.Message}");
-                }
-            });
-        }
+        
 
         private async Task<ServiceResponse> ProcessBulkCancellation(List<int> orderIds, int adminId, string finalStatus, string? adminReason)
         {
@@ -536,7 +503,7 @@ namespace Project1_VTCA.Services
 
         #endregion
 
-        public async Task<(List<Order> Orders, int TotalPages)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize)
+        public async Task<(List<Order> Orders, int TotalPages, int TotalCount)> GetOrdersForAdminAsync(string? statusFilter, int pageNumber, int pageSize)
         {
             var query = _context.Orders
                 .Include(o => o.User)
@@ -545,23 +512,22 @@ namespace Project1_VTCA.Services
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
-                // Bộ lọc đặc biệt cho các đơn hàng cần xử lý
                 if (statusFilter == "ActionRequired")
                 {
                     query = query.Where(o => o.Status == "PendingAdminApproval" || o.Status == "CancellationRequested");
                 }
-                // Nếu filter chứa dấu '|', tách chuỗi và lọc với nhiều trạng thái
                 else if (statusFilter.Contains('|'))
                 {
                     var statuses = statusFilter.Split('|', StringSplitOptions.RemoveEmptyEntries);
                     query = query.Where(o => statuses.Contains(o.Status));
                 }
-                else // Ngược lại, lọc theo một trạng thái duy nhất
+                else
                 {
                     query = query.Where(o => o.Status == statusFilter);
                 }
             }
 
+            // Tính tổng số lượng trước khi phân trang
             var totalOrders = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalOrders / (double)pageSize);
 
@@ -570,7 +536,8 @@ namespace Project1_VTCA.Services
                 .Take(pageSize)
                 .ToListAsync();
 
-            return (orders, totalPages);
+            // Trả về cả 3 giá trị
+            return (orders, totalPages, totalOrders);
         }
 
         public async Task<ServiceResponse> ConfirmOrderAsync(int orderId)
@@ -612,10 +579,7 @@ namespace Project1_VTCA.Services
             return await ProcessOrderCancellation(orderId, adminId, "RejectedByAdmin", reason);
         }
 
-        public async Task<ServiceResponse> ApproveCancellationAsync(int orderId, int adminId)
-        {
-            return await ProcessOrderCancellation(orderId, adminId, "CustomerCancelled", null);
-        }
+     
 
         private async Task<ServiceResponse> ProcessOrderCancellation(int orderId, int adminId, string finalStatus, string? adminReason)
         {

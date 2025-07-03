@@ -55,11 +55,10 @@ namespace Project1_VTCA.UI.Customer
                     case "1": currentFilter = null; break;
                     case "2": currentFilter = "PendingAdminApproval"; break;
                     case "3": currentFilter = "Processing"; break;
-                    case "4": currentFilter = "CancellationRequested"; break;
+                    case "4": currentFilter = "CustomerCancelled|RejectedByAdmin|Canceled"; break; 
                     case "5":
-                        currentFilter = "RejectedByAdmin|Cancelled|CustomerCancelled";
-                        break;
-                    case "6": await HandleCancelOrder(); break;
+                        await HandleCancelOrder(); break;
+                   
                     case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
                     case "p": if (pageNumber > 1) pageNumber--; break; // Previous page
                     case "0": return;
@@ -80,10 +79,9 @@ namespace Project1_VTCA.UI.Customer
 " 1. Xem Tất cả\n" +
 " 2. Đơn hàng Chờ xác nhận\n" +
 " 3. Đơn hàng Đã xác nhận\n" +
-" 4. Đơn hàng chờ huỷ\n" +
-" 5. Đơn hàng Đã hủy\n\n" +
+" 4. Đơn hàng Đã hủy\n\n" +
 "[bold]Hành động:[/]\n" +
-" 6. Hủy một đơn hàng\n\n" +
+" 5. Hủy một đơn hàng\n\n" +
 " [red]0. Quay lại[/]"
             );
         }
@@ -187,9 +185,9 @@ namespace Project1_VTCA.UI.Customer
         // NÂNG CẤP: Yêu cầu nhập OrderID (int) thay vì OrderCode (string)
         private async Task HandleCancelOrder()
         {
-            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn yêu cầu hủy (chỉ nhập số):");
+            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy:");
+            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
 
-            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/]:");
             if (string.IsNullOrWhiteSpace(reason))
             {
                 AnsiConsole.MarkupLine("[red]Lý do hủy không được để trống.[/]");
@@ -197,7 +195,7 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            if (AnsiConsole.Confirm($"Bạn có chắc muốn yêu cầu hủy đơn hàng [yellow]ID {orderId}[/]?"))
+            if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
                 var response = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
                 string color = response.IsSuccess ? "green" : "red";

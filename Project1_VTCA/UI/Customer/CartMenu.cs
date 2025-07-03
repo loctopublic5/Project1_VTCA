@@ -1,4 +1,5 @@
-﻿using Project1_VTCA.Data;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Customer.Interfaces;
 using Project1_VTCA.UI.Draw;
@@ -17,8 +18,8 @@ namespace Project1_VTCA.UI.Customer
         private readonly ISessionService _sessionService;
         private readonly IPromotionService _promotionService;
         private readonly ConsoleLayout _layout;
-        private readonly ProductMenu _productMenu;
-        private readonly ICheckoutMenu _checkoutMenu; // THÊM: Để gọi luồng thanh toán
+        private readonly ICheckoutMenu _checkoutMenu;
+        private readonly IServiceProvider _serviceProvider;
 
         private class CartState
         {
@@ -28,14 +29,18 @@ namespace Project1_VTCA.UI.Customer
         }
 
         // Cập nhật constructor
-        public CartMenu(ICartService cartService, ISessionService sessionService, IPromotionService promotionService, ConsoleLayout layout, ProductMenu productMenu, ICheckoutMenu checkoutMenu)
+        public CartMenu(
+             ICartService cartService,
+             ISessionService sessionService,
+             IPromotionService promotionService,
+             ConsoleLayout layout,
+             IServiceProvider serviceProvider)
         {
             _cartService = cartService;
             _sessionService = sessionService;
             _promotionService = promotionService;
             _layout = layout;
-            _productMenu = productMenu;
-            _checkoutMenu = checkoutMenu; // Gán service mới
+            _serviceProvider = serviceProvider; // Lưu lại "người môi giới"
         }
 
         public async Task ShowAsync()
@@ -84,11 +89,17 @@ namespace Project1_VTCA.UI.Customer
             {
                 if (int.TryParse(choice.AsSpan(3), out int productId))
                 {
-                    await _productMenu.HandleViewProductDetailsAsync(productId);
+                    // Lấy ProductMenu chỉ khi cần thiết
+                    var productMenu = _serviceProvider.GetRequiredService<ProductMenu>();
+                    await productMenu.HandleViewProductDetailsAsync(productId);
                 }
-                return true;
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]Mã sản phẩm không hợp lệ.[/]");
+                    Console.ReadKey();
+                }
             }
-            if (choice.StartsWith("p."))
+                if (choice.StartsWith("p."))
             {
                 if (int.TryParse(choice.AsSpan(2), out int page) && page > 0 && page <= state.TotalPages)
                 {
