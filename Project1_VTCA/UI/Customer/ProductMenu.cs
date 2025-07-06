@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Customer.Interfaces;
@@ -21,17 +22,18 @@ namespace Project1_VTCA.UI.Customer
         private readonly ISessionService _sessionService;
         private readonly ICartService _cartService;
         private readonly ICheckoutMenu _checkoutMenu;
-        private readonly ICartMenu _cartMenu;
+        private readonly IServiceProvider _serviceProvider; 
         private readonly ConsoleLayout _layout;
         private List<Category> _productCategories;
 
+       
         public ProductMenu(
             IProductService productService,
             IPromotionService promotionService,
             ISessionService sessionService,
             ICartService cartService,
             ICheckoutMenu checkoutMenu,
-            ICartMenu cartMenu,
+            IServiceProvider serviceProvider,
             ConsoleLayout layout)
         {
             _productService = productService;
@@ -39,7 +41,7 @@ namespace Project1_VTCA.UI.Customer
             _sessionService = sessionService;
             _cartService = cartService;
             _checkoutMenu = checkoutMenu;
-            _cartMenu = cartMenu; // Gán
+            _serviceProvider = serviceProvider;
             _layout = layout;
             _productCategories = new List<Category>();
         }
@@ -137,9 +139,10 @@ namespace Project1_VTCA.UI.Customer
             var quantity = AnsiConsole.Prompt(
                 new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
                     .Validate(q => {
+                        var stock = selectedSize.QuantityInStock ?? 0;
                         if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
-                        if (q > (selectedSize.QuantityInStock ?? 0)) return ValidationResult.Error("[red]Số lượng vượt quá tồn kho.[/]");
+                        // BỎ GIỚI HẠN 5
+                        if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
                         return ValidationResult.Success();
                     }));
 
@@ -181,14 +184,16 @@ namespace Project1_VTCA.UI.Customer
             );
 
             var quantity = AnsiConsole.Prompt(
-                new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
-                    .Validate(q => {
-                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
-                        var stock = selectedSize.QuantityInStock ?? 0;
-                        if (q > stock) return ValidationResult.Error($"[red]Số lượng tồn kho không đủ (chỉ còn {stock}).[/]");
-                        return ValidationResult.Success();
-                    }));
+                 new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
+                     .ValidationErrorMessage("[red]Dữ liệu không hợp lệ![/]")
+                     .Validate(q =>
+                     {
+                         var stock = selectedSize.QuantityInStock ?? 0;
+                         if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
+                         // BỎ GIỚI HẠN 5
+                         if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
+                         return ValidationResult.Success();
+                     }));
 
             var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
             var finalPrice = discountedPrice ?? product.Price;
@@ -391,7 +396,8 @@ namespace Project1_VTCA.UI.Customer
                     }
                     else
                     {
-                        await _cartMenu.ShowAsync();
+                        var cartMenu = _serviceProvider.GetRequiredService<ICartMenu>();
+                        await cartMenu.ShowAsync();
                     }
                     break;
                 default:

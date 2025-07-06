@@ -39,7 +39,8 @@ namespace Project1_VTCA.UI
                 else
                 {
                     if (_sessionService.CurrentUser.Role == "Admin") await _adminMenu.Show();
-                    else await _userMenu.Show();
+                    else 
+                        await _userMenu.Show();
                 }
             }
         }

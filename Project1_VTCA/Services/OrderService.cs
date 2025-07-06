@@ -170,7 +170,7 @@ namespace Project1_VTCA.Services
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    return new ServiceResponse(true, order.OrderCode);
+                    return new ServiceResponse(true, order.OrderID.ToString());
                 }
                 catch (Exception ex)
                 {
