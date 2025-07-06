@@ -16,8 +16,9 @@ namespace Project1_VTCA.UI.Admin
         private readonly IOrderService _orderService;
         private readonly ISessionService _sessionService;
         private readonly ConsoleLayout _layout;
-        // Hằng số cho lựa chọn đặc biệt, giúp code dễ đọc và bảo trì
         private const string SELECT_ALL_CHOICE = "[bold yellow](Chọn/Bỏ chọn Tất cả các đơn trong lô này)[/]";
+        private const string REASON_OUT_OF_STOCK = "Sản phẩm hiện đang hết hàng";
+        private const string REASON_OTHER = "Lý do khác (nhập chi tiết)...";
 
         public AdminOrderMenu(IOrderService orderService, ISessionService sessionService, ConsoleLayout layout)
         {
@@ -251,7 +252,7 @@ namespace Project1_VTCA.UI.Admin
             const int batchSize = 10;
             while (true)
             {
-                var (batch, totalPages, totalCount) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, batchSize);
+                var (batch, _, totalCount) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, batchSize);
                 if (!batch.Any())
                 {
                     AnsiConsole.MarkupLine("\n[green]Tuyệt vời! Đã xử lý xong tất cả các đơn hàng đang chờ xác nhận.[/]");
@@ -259,94 +260,13 @@ namespace Project1_VTCA.UI.Admin
                     break;
                 }
 
-                var mainViewPrompt = CreateMultiSelectPrompt(batch);
-                var sideViewContent = CreateDetailedOrderTable(batch);
-
-                _layout.Render(new Markup(""), sideViewContent, new Markup(mainViewPrompt.Title ?? ""));
-
-
-                var selectedOrders = AnsiConsole.Prompt(mainViewPrompt);
-                var finalSelection = ProcessSelection(selectedOrders, batch);
-
-                if (!finalSelection.Any())
-                {
-                    if (AnsiConsole.Confirm("[yellow]Bạn không chọn đơn hàng nào. Bạn có muốn thoát khỏi chức năng này không?[/]")) break;
-                    continue;
-                }
-
-                // --- BẮT ĐẦU LUỒNG XỬ LÝ TỪNG PHẦN ---
-                var succeededOrders = new List<Order>();
-                var failedOrders = new List<(Order Order, string Reason)>();
-                var adminId = _sessionService.CurrentUser.UserID;
-
-                await AnsiConsole.Status()
-                    .Spinner(Spinner.Known.Dots)
-                    .StartAsync($"Đang xử lý {finalSelection.Count} đơn hàng...", async ctx =>
-                    {
-                        foreach (var order in finalSelection)
-                        {
-                            var response = await _orderService.AttemptToConfirmOrderAsync(order.OrderID, adminId);
-                            if (response.IsSuccess)
-                            {
-                                succeededOrders.Add(order);
-                            }
-                            else
-                            {
-                                failedOrders.Add((order, response.Message));
-                            }
-                        }
-                    });
-
-                // --- HIỂN THỊ BÁO CÁO KẾT QUẢ ---
-                DisplayConfirmationReport(succeededOrders, failedOrders);
-                AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để tiếp tục...[/]");
-                Console.ReadKey();
-
-                if (AnsiConsole.Confirm("Bạn có muốn tiếp tục xử lý các lô đơn hàng khác không?")) continue;
-                break;
-            }
-        }
-
-        #endregion // xác nhận đơn hàng
-
-        #region huỷ đơn hàng phía admin
-        private async Task HandleBulkRejectFlowAsync()
-        {
-            var reason = GetRejectionReason();
-            if (reason == null) // Người dùng đã hủy ở bước chọn lý do
-            {
-                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
-                Console.ReadKey();
-                return;
-            }
-            // Gọi đến hàm xử lý chung với logic hủy đơn hàng
-            await HandleBulkActionFlow("PendingAdminApproval", "Từ chối",
-                (ids, adminId) => _orderService.BulkRejectOrdersAsync(ids, adminId, reason), true);
-        }
-        private async Task HandleBulkActionFlow(string statusToFetch, string actionName, Func<List<int>, int, Task<ServiceResponse>> bulkAction, bool isRejectAction)
-        {
-            const int batchSize = 10;
-            while (true)
-            {
-                var (batch, totalPages, totalCount) = await _orderService.GetOrdersForAdminAsync(statusToFetch, 1, batchSize);
-
-                if (!batch.Any())
-                {
-                    AnsiConsole.MarkupLine($"\n[green]Không có đơn hàng nào cần '{actionName}'.[/]");
-                    Console.ReadKey();
-                    break;
-                }
-
-                var menuContent = new Markup($"[bold yellow]ĐANG XỬ LÝ: {actionName.ToUpper()}[/]");
+                var menuContent = new Markup("[bold yellow]ĐANG XỬ LÝ:\nXÁC NHẬN ĐƠN HÀNG[/]");
                 var viewContent = CreateDetailedOrderTable(batch);
-                var notificationContent = new Markup("[dim]Bảng trên chỉ để tham khảo. Hãy lựa chọn ở danh sách bên dưới.[/]");
-
+                var notificationContent = new Markup("[dim]Dùng danh sách bên dưới để chọn.[/]");
                 _layout.Render(menuContent, viewContent, notificationContent);
 
-                // SỬA LỖI: Tách biệt việc tạo và thực thi Prompt
-                var prompt = CreateMultiSelectPrompt(batch); // 1. Tạo Prompt
-                var selectedItems = AnsiConsole.Prompt(prompt);          // 2. Thực thi Prompt để lấy kết quả
-
+                var prompt = CreateMultiSelectPrompt(batch, "xác nhận");
+                var selectedItems = AnsiConsole.Prompt(prompt);
                 var finalSelection = ProcessSelection(selectedItems, batch);
 
                 if (!finalSelection.Any())
@@ -355,19 +275,100 @@ namespace Project1_VTCA.UI.Admin
                     continue;
                 }
 
-                if (AnsiConsole.Confirm($"Bạn có chắc chắn muốn [green]{actionName} {finalSelection.Count} đơn hàng[/] đã chọn không?"))
+                // ĐIỂM DỪNG AN TOÀN
+                if (AnsiConsole.Confirm($"\n[yellow]Bạn có chắc chắn muốn xác nhận [bold]{finalSelection.Count}[/] đơn hàng đã chọn không?[/]"))
                 {
                     var orderIds = finalSelection.Select(o => o.OrderID).ToList();
                     var adminId = _sessionService.CurrentUser.UserID;
-                    var response = await bulkAction(orderIds, adminId);
-
-                    AnsiConsole.MarkupLine($"\n[{(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]");
-                    AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để tải lô tiếp theo...[/]");
-                    Console.ReadKey();
+                    // Sử dụng lại phương thức xử lý từng phần đã có để có báo cáo chi tiết
+                    await ProcessOrdersIndividuallyAndReport(finalSelection, adminId);
                 }
                 else
                 {
-                    if (AnsiConsole.Confirm("[yellow]Đã hủy thao tác. Bạn có muốn thoát khỏi chức năng này không?[/]")) break;
+                    AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                }
+
+                // VÒNG LẶP TIẾP TỤC XỬ LÝ
+                var (remainingOrders, _, _) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, 1);
+                if (remainingOrders.Any())
+                {
+                    if (!AnsiConsole.Confirm("[cyan]Vẫn còn đơn hàng cần xử lý. Bạn có muốn tiếp tục không?[/]"))
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("\n[green]Đã xử lý xong tất cả đơn hàng.[/]");
+                    Console.ReadKey();
+                    break;
+                }
+            }
+        }
+
+        #endregion // xác nhận đơn hàng
+
+        #region huỷ đơn hàng phía admin
+        private async Task HandleBulkRejectFlowAsync()
+        {
+            const int batchSize = 10;
+            while (true)
+            {
+                var (batch, totalPages, totalCount) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, batchSize);
+
+                if (!batch.Any())
+                {
+                    AnsiConsole.MarkupLine("\n[green]Không còn đơn hàng nào đang chờ để hủy.[/]");
+                    Console.ReadKey();
+                    break;
+                }
+
+                // TỐI ƯU HÓA: Đi thẳng vào việc chọn đơn hàng
+                var prompt = CreateMultiSelectPrompt(batch, "hủy");
+                var selectedItems = AnsiConsole.Prompt(prompt);
+                var finalSelection = ProcessSelection(selectedItems, batch);
+
+                if (!finalSelection.Any())
+                {
+                    if (AnsiConsole.Confirm("[yellow]Bạn không chọn đơn hàng nào. Bạn có muốn thoát không?[/]")) break;
+                    continue;
+                }
+
+                var reason = GetRejectionReason();
+                if (reason == null)
+                {
+                    if (AnsiConsole.Confirm("[yellow]Đã hủy bước chọn lý do. Bạn có muốn thoát khỏi chức năng này không?[/]")) break;
+                    continue;
+                }
+
+                // ĐIỂM DỪNG AN TOÀN CUỐI CÙNG
+                if (AnsiConsole.Confirm($"\n[yellow]Bạn có chắc chắn muốn hủy [bold]{finalSelection.Count}[/] đơn hàng với lý do \"[orange1]{Markup.Escape(reason)}[/]\" không?[/]"))
+                {
+                    var orderIds = finalSelection.Select(o => o.OrderID).ToList();
+                    var adminId = _sessionService.CurrentUser.UserID;
+                    var response = await _orderService.BulkRejectOrdersAsync(orderIds, adminId, reason);
+
+                    AnsiConsole.MarkupLine($"\n[{(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                }
+
+                // VÒNG LẶP TIẾP TỤC XỬ LÝ
+                var (remainingOrders, _, _) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, 1);
+                if (remainingOrders.Any())
+                {
+                    if (!AnsiConsole.Confirm("[cyan]Vẫn còn đơn hàng cần xử lý. Bạn có muốn tiếp tục không?[/]"))
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("\n[green]Đã xử lý xong tất cả đơn hàng.[/]");
+                    Console.ReadKey();
+                    break;
                 }
             }
         }
@@ -377,39 +378,76 @@ namespace Project1_VTCA.UI.Admin
             var reasonChoice = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("\nChọn [green]lý do hủy[/] chung cho các đơn hàng đã chọn:")
-                    .AddChoices(new[] { "Sản phẩm hiện đang hết hàng", "Lý do khác (nhập chi tiết)..." })
+                    .AddChoices(new[] { REASON_OUT_OF_STOCK, REASON_OTHER, "Quay lại" })
             );
 
-            if (reasonChoice == "Lý do khác (nhập chi tiết)...")
+            if (reasonChoice == "Quay lại") return null;
+
+            if (reasonChoice == REASON_OTHER)
             {
                 return AnsiConsole.Ask<string>("Nhập [green]lý do hủy chi tiết[/]:");
             }
             return reasonChoice;
         }
 
-        private MultiSelectionPrompt<Order> ShowMultiSelectPromptForRejection(List<Order> batch)
+        private List<Order> ShowMultiSelectPromptForRejection(List<Order> batch)
         {
             var selectAllOrder = new Order { OrderID = -1, User = new User { FullName = SELECT_ALL_CHOICE } };
             var selectionList = new List<Order> { selectAllOrder }.Concat(batch).ToList();
 
-            return new MultiSelectionPrompt<Order>()
+            var prompt = new MultiSelectionPrompt<Order>()
                 .Title("\n[bold]Chọn các đơn hàng cần hủy từ danh sách tham khảo bên phải:[/]")
                 .PageSize(12)
                 .MoreChoicesText("[grey](Điều hướng bằng phím lên/xuống)[/]")
-                .InstructionsText("(Dùng [blue]phím cách[/] để chọn, [green]enter[/] để xác nhận)")
+                .InstructionsText("[grey](Dùng [blue]phím cách[/] để chọn, [green]enter[/] để xác nhận)[/]")
                 .UseConverter(order => {
                     if (order.OrderID == -1) return order.User.FullName;
                     return $"[bold]ID: {order.OrderID}[/] - Khách hàng: {Markup.Escape(order.User.FullName)}";
                 })
                 .AddChoices(selectionList);
+
+            return AnsiConsole.Prompt(prompt);
         }
+
+
+
+
         #endregion // huỷ đơn hàng phía admin
+
+        private async Task ProcessOrdersIndividuallyAndReport(List<Order> orders, int adminId)
+        {
+            var succeededOrders = new List<Order>();
+            var failedOrders = new List<(Order Order, string Reason)>();
+
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Dots)
+                .StartAsync($"Đang xử lý {orders.Count} đơn hàng...", async ctx =>
+                {
+                    foreach (var order in orders)
+                    {
+                        var response = await _orderService.AttemptToConfirmOrderAsync(order.OrderID, adminId);
+                        if (response.IsSuccess)
+                        {
+                            succeededOrders.Add(order);
+                        }
+                        else
+                        {
+                            failedOrders.Add((order, response.Message));
+                        }
+                    }
+                });
+
+            DisplayConfirmationReport(succeededOrders, failedOrders);
+        }
 
         private void DisplayConfirmationReport(List<Order> succeededOrders, List<(Order Order, string Reason)> failedOrders)
         {
+            AnsiConsole.Clear();
+            AnsiConsole.Write(new Rule("[bold yellow]BÁO CÁO KẾT QUẢ XỬ LÝ[/]").Centered());
+
             if (succeededOrders.Any())
             {
-                AnsiConsole.MarkupLine("[green]Các đơn hàng sau đã được xác nhận thành công:[/]");
+                AnsiConsole.MarkupLine($"\n[green]Đã xác nhận thành công {succeededOrders.Count} đơn hàng:[/]");
                 var successTable = new Table().Border(TableBorder.Rounded).AddColumn("ID").AddColumn("Mã Đơn");
                 foreach (var order in succeededOrders)
                 {
@@ -420,7 +458,7 @@ namespace Project1_VTCA.UI.Admin
 
             if (failedOrders.Any())
             {
-                AnsiConsole.MarkupLine("[red]Các đơn hàng sau không thể xác nhận:[/]");
+                AnsiConsole.MarkupLine($"\n[red]Không thể xác nhận {failedOrders.Count} đơn hàng:[/]");
                 var failureTable = new Table().Border(TableBorder.Rounded).AddColumn("ID").AddColumn("Mã Đơn").AddColumn("Lý do thất bại");
                 foreach (var (order, reason) in failedOrders)
                 {
@@ -431,6 +469,7 @@ namespace Project1_VTCA.UI.Admin
         }
 
 
+        
         private List<Order> ProcessSelection(List<Order> selectedItems, List<Order> currentBatch)
         {
             bool selectAllWasChosen = selectedItems.Any(o => o.OrderID == -1);
@@ -443,23 +482,23 @@ namespace Project1_VTCA.UI.Admin
             return selectedItems.Where(o => o.OrderID != -1).ToList();
         }
 
-        private MultiSelectionPrompt<Order> CreateMultiSelectPrompt(List<Order> batch)
+        private MultiSelectionPrompt<Order> CreateMultiSelectPrompt(List<Order> batch, string actionType)
         {
             var selectAllOrder = new Order { OrderID = -1, OrderCode = SELECT_ALL_CHOICE };
             var selectionList = new List<Order> { selectAllOrder }.Concat(batch).ToList();
 
             return new MultiSelectionPrompt<Order>()
-                .Title("\n[bold]Chọn các đơn hàng cần xác nhận từ danh sách chi tiết ở trên:[/]")
+                .Title($"\n[bold]Chọn các đơn hàng cần {actionType} từ danh sách chi tiết ở trên:[/]")
                 .PageSize(12)
                 .MoreChoicesText("[grey](Điều hướng bằng phím lên/xuống)[/]")
                 .InstructionsText("[grey](Dùng [blue]phím cách[/] để chọn, [green]enter[/] để xác nhận)[/]")
                 .UseConverter(order => {
                     if (order.OrderID == -1) return order.OrderCode;
-                    // Hiển thị thông tin tối giản trong prompt
                     return $"[bold]ID: {order.OrderID}[/] - Khách hàng: {Markup.Escape(order.User.FullName)}";
                 })
                 .AddChoices(selectionList);
         }
+
 
 
 
