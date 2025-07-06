@@ -9,11 +9,13 @@ namespace Project1_VTCA.UI.Admin
     public class AdminMenu : IAdminMenu
     {
         private readonly IAdminOrderMenu _adminOrderMenu;
+        private readonly IAdminCustomerMenu _adminCustomerMenu; 
         private readonly ISessionService _sessionService;
 
-        public AdminMenu(IAdminOrderMenu adminOrderMenu, ISessionService sessionService)
+        public AdminMenu(IAdminOrderMenu adminOrderMenu, IAdminCustomerMenu adminCustomerMenu, ISessionService sessionService)
         {
             _adminOrderMenu = adminOrderMenu;
+            _adminCustomerMenu = adminCustomerMenu; 
             _sessionService = sessionService;
         }
 
@@ -30,7 +32,7 @@ namespace Project1_VTCA.UI.Admin
                     .AddChoices(new[] {
                         "Quản lý Đơn hàng",
                         "Quản lý Sản phẩm (sắp có)",
-                        "Quản lý Khách hàng (sắp có)",
+                        "Quản lý Khách hàng ",
                         "[red]Đăng xuất[/]"
                     })
                 );
@@ -44,9 +46,9 @@ namespace Project1_VTCA.UI.Admin
                         AnsiConsole.MarkupLine("[yellow]Chức năng đang được xây dựng.[/]");
                         Console.ReadKey();
                         break;
-                    case "Quản lý Khách hàng (sắp có)":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng đang được xây dựng.[/]");
-                        Console.ReadKey();
+                    case "Quản lý Khách hàng ":
+                        await _adminCustomerMenu.ShowAsync(); 
+                        break;
                         break;
                     case "[red]Đăng xuất[/]":
                         _sessionService.LogoutUser();

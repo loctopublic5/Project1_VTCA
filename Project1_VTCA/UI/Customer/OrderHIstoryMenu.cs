@@ -35,7 +35,7 @@ namespace Project1_VTCA.UI.Customer
 
                 var menuContent = CreateMenu();
                 var viewContent = CreateOrderTable(orders);
-                var notification = new Markup("[dim]Chọn bộ lọc, hoặc nhập 'or.{id}' để xem chi tiết.[/]");
+                var notification = CreateNotificationPanel(pageNumber, totalPages);
 
                 _layout.Render(menuContent, viewContent, notification);
 
@@ -55,10 +55,10 @@ namespace Project1_VTCA.UI.Customer
                     case "1": currentFilter = null; break;
                     case "2": currentFilter = "PendingAdminApproval"; break;
                     case "3": currentFilter = "Processing"; break;
-                    case "4": currentFilter = "CustomerCancelled|RejectedByAdmin|Canceled"; break; 
+                    case "4": currentFilter = "CustomerCancelled|RejectedByAdmin|Canceled"; break;
                     case "5":
                         await HandleCancelOrder(); break;
-                   
+
                     case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
                     case "p": if (pageNumber > 1) pageNumber--; break; // Previous page
                     case "0": return;
@@ -66,9 +66,6 @@ namespace Project1_VTCA.UI.Customer
                 }
             }
         }
-
-
-        // ... (các phương thức khác của OrderHistoryMenu)
 
         #region Helper Methods
         private Markup CreateMenu()
@@ -130,6 +127,15 @@ namespace Project1_VTCA.UI.Customer
             return table;
         }
 
+        // Modified: Remove OrderHistoryState, use pageNumber and totalPages
+        private Markup CreateNotificationPanel(int currentPage, int totalPages)
+        {
+            var totalSpending = _sessionService.CurrentUser.TotalSpending;
+            var spendingText = $"[cyan]Tổng chi tiêu: {totalSpending:N0} VNĐ[/]. ";
+
+            return new Markup($"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]. {spendingText}" +
+                              "[dim]Chọn bộ lọc hoặc dùng lệnh.[/]");
+        }
 
         private async Task HandleViewOrderDetailsAsync(int orderId)
         {
@@ -141,7 +147,6 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            
             var grid = new Grid();
             grid.AddColumn();
             grid.AddColumn();
