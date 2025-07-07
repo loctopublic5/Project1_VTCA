@@ -27,8 +27,8 @@ class Program
         var builder = Host.CreateApplicationBuilder(args);
 
        
-        builder.Logging.ClearProviders(); // Xóa các nhà cung cấp log mặc định nếu cần
-        builder.Logging.AddConsole(); // Thêm lại Console logger
+        builder.Logging.ClearProviders(); 
+        builder.Logging.AddConsole(); 
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

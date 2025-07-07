@@ -344,7 +344,7 @@ namespace Project1_VTCA.UI.Customer
                     {
                         await HandleAddToCartFlowAsync(product);
                     }
-                    else // parts[0] == "buy"
+                    else 
                     {
                         await HandleBuyNowFlowAsync(product);
                     }
@@ -354,7 +354,7 @@ namespace Project1_VTCA.UI.Customer
                     AnsiConsole.MarkupLine("[red]Lỗi: Cú pháp lệnh không hợp lệ.[/]");
                     Console.ReadKey();
                 }
-                return true; // Quay lại vòng lặp để làm mới danh sách
+                return true; 
             }
 
             if (choice.StartsWith("id."))

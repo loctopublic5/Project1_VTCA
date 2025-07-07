@@ -390,24 +390,7 @@ namespace Project1_VTCA.UI.Admin
             return reasonChoice;
         }
 
-        private List<Order> ShowMultiSelectPromptForRejection(List<Order> batch)
-        {
-            var selectAllOrder = new Order { OrderID = -1, User = new User { FullName = SELECT_ALL_CHOICE } };
-            var selectionList = new List<Order> { selectAllOrder }.Concat(batch).ToList();
-
-            var prompt = new MultiSelectionPrompt<Order>()
-                .Title("\n[bold]Chọn các đơn hàng cần hủy từ danh sách tham khảo bên phải:[/]")
-                .PageSize(12)
-                .MoreChoicesText("[grey](Điều hướng bằng phím lên/xuống)[/]")
-                .InstructionsText("[grey](Dùng [blue]phím cách[/] để chọn, [green]enter[/] để xác nhận)[/]")
-                .UseConverter(order => {
-                    if (order.OrderID == -1) return order.User.FullName;
-                    return $"[bold]ID: {order.OrderID}[/] - Khách hàng: {Markup.Escape(order.User.FullName)}";
-                })
-                .AddChoices(selectionList);
-
-            return AnsiConsole.Prompt(prompt);
-        }
+        
 
 
 

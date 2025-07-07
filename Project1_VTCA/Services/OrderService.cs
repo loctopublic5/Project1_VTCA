@@ -63,27 +63,24 @@ namespace Project1_VTCA.Services
                         return new ServiceResponse(false, "Chỉ có thể hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
                     }
 
-                    // 1. Cập nhật trạng thái tức thì
-                    order.Status = "CustomerCancelled";
-                    order.CustomerCancellationReason = reason;
-
-                    // 2. Hoàn tiền ngay lập tức (nếu có)
+                    // Hoàn tiền ngay lập tức (nếu có)
                     if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
-                        order.User.Balance += order.TotalPrice;
-                        // Hoàn lại chi tiêu đã ghi nhận (nếu có, để phòng ngừa)
-                        decimal subTotal = await _context.OrderDetails
-                            .Where(od => od.OrderID == orderId)
-                            .SumAsync(od => od.UnitPrice * od.Quantity);
-                        order.User.TotalSpending -= subTotal;
+                        if (order.User != null)
+                        {
+                            order.User.Balance += order.TotalPrice;
+                        }
                     }
 
-                    // 3. TUYỆT ĐỐI KHÔNG HOÀN KHO
+
+                    // Cập nhật trạng thái đơn hàng
+                    order.Status = "CustomerCancelled";
+                    order.CustomerCancellationReason = reason;
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    return new ServiceResponse(true, "Đã hủy đơn hàng thành công.");
+                    return new ServiceResponse(true, "Đã hủy đơn hàng thành công và hoàn tiền (nếu có).");
                 }
                 catch (Exception ex)
                 {

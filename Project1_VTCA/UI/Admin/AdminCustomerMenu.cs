@@ -126,6 +126,7 @@ namespace Project1_VTCA.UI.Admin
                 var choice = AnsiConsole.Ask<string>("\n> Nhập lựa chọn:").ToLower();
 
                 if (choice == "0") return;
+                
 
                 if (choice.StartsWith("p."))
                 {
@@ -164,11 +165,11 @@ namespace Project1_VTCA.UI.Admin
         {
             return new Markup(
                 "[bold yellow underline]QUẢN LÝ KHÁCH HÀNG[/]\n\n" +
-                "[bold]Sắp xếp theo:[/]\n" +
-                " 1. Cao-Thấp\n" +
-                " 2. Thấp-Cao\n\n" +
+                //"[bold]Sắp xếp theo:[/]\n" +
+                //" 1. Cao-Thấp\n" +
+                //" 2. Thấp-Cao\n\n" +
                 "[bold]Hành động:[/]\n" +
-                " cus.{id} - Xem chi tiết khách hàng\n\n" +
+                "[blue] cus.{id}[/] - Xem chi tiết khách hàng\n\n" +
                 " [red]0. Quay lại[/]"
             );
         }

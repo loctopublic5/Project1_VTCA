@@ -157,6 +157,16 @@ namespace Project1_VTCA.UI.Customer
             grid.AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)));
             grid.AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
 
+            if (order.Status == "CustomerCancelled" && !string.IsNullOrEmpty(order.CustomerCancellationReason))
+            {
+                grid.AddRow(new Markup("[bold red]Lý do bạn đã hủy:[/]"), new Markup($"[italic]{Markup.Escape(order.CustomerCancellationReason)}[/]"));
+            }
+            else if (order.Status == "RejectedByAdmin" && !string.IsNullOrEmpty(order.AdminDecisionReason))
+            {
+                grid.AddRow(new Markup("[bold red]Lý do bị từ chối:[/]"), new Markup($"[italic]{Markup.Escape(order.AdminDecisionReason)}[/]"));
+            }
+          
+
             var panel = new Panel(grid)
                 .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
                 .Expand();
@@ -183,6 +193,7 @@ namespace Project1_VTCA.UI.Customer
             AnsiConsole.Write(panel);
             AnsiConsole.Write(table);
             AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
+           
             AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để quay lại...[/]");
             Console.ReadKey();
         }
