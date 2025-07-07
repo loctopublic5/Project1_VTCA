@@ -50,6 +50,12 @@ namespace Project1_VTCA.Services
             {
                 case "price_desc": query = query.OrderByDescending(p => p.Price); break;
                 case "price_asc": query = query.OrderBy(p => p.Price); break;
+                case "stock_desc": 
+                    query = query.OrderByDescending(p => p.TotalQuantity) ;
+                    break;
+                case "stock_asc": 
+                    query = query.OrderBy(p => p.TotalQuantity);
+                    break;
                 default: query = query.OrderByDescending(p => p.ProductID); break;
             }
 
@@ -124,7 +130,24 @@ namespace Project1_VTCA.Services
 
         #region ADMIN METHODS
 
-
+        public List<int> GetValidSizesForGender(string gender)
+        {
+            return gender switch
+            {
+                "Male" => Enumerable.Range(40, 6).ToList(),    // 40-45
+                "Female" => Enumerable.Range(36, 4).ToList(),  // 36-39
+                "Unisex" => Enumerable.Range(36, 10).ToList(), // 36-45
+                _ => new List<int>()
+            };
+        }
+        public async Task<Product?> GetProductByIdIncludingInactiveAsync(int productId)
+        {
+            return await _context.Products
+                .Include(p => p.ProductCategories).ThenInclude(pc => pc.Category)
+                .Include(p => p.ProductSizes)
+                // KHÔNG có điều kiện Where(p => p.IsActive)
+                .FirstOrDefaultAsync(p => p.ProductID == productId);
+        }
         public async Task<Product?> AddNewProductAsync(Product newProduct, List<int> categoryIds)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -133,37 +156,21 @@ namespace Project1_VTCA.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Bước 1: Thêm sản phẩm chính
                     _context.Products.Add(newProduct);
-                    await _context.SaveChangesAsync(); // Lưu để lấy ProductID
+                    await _context.SaveChangesAsync();
 
-                    // Bước 2: Thêm các liên kết danh mục
                     foreach (var categoryId in categoryIds)
                     {
-                        var productCategory = new ProductCategory
-                        {
-                            ProductID = newProduct.ProductID,
-                            CategoryID = categoryId
-                        };
+                        var productCategory = new ProductCategory { ProductID = newProduct.ProductID, CategoryID = categoryId };
                         _context.ProductCategories.Add(productCategory);
                     }
                     await _context.SaveChangesAsync();
 
-                    // Bước 3: Tạo các bản ghi ProductSize với tồn kho = 0
-                    var availableSizes = new List<int>();
-                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
-                        availableSizes.AddRange(Enumerable.Range(38, 8)); // 38-45
-                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
-                        availableSizes.AddRange(Enumerable.Range(35, 5)); // 35-39
-
-                    foreach (var size in availableSizes.Distinct().OrderBy(s => s))
+                    // Chỉ tạo các bản ghi size hợp lệ với giới tính đã chọn
+                    var validSizes = GetValidSizesForGender(newProduct.GenderApplicability);
+                    foreach (var size in validSizes)
                     {
-                        var productSize = new ProductSize
-                        {
-                            ProductID = newProduct.ProductID,
-                            Size = size,
-                            QuantityInStock = 0
-                        };
+                        var productSize = new ProductSize { ProductID = newProduct.ProductID, Size = size, QuantityInStock = 0 };
                         _context.ProductSizes.Add(productSize);
                     }
 

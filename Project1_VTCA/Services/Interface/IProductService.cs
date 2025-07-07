@@ -15,7 +15,6 @@ namespace Project1_VTCA.Services.Interface
         Task<List<Category>> GetAllProductCategoriesAsync();
         string GetDisplayCategory(Product product);
 
-
         /// ADMIN METHODS
         Task<ServiceResponse> AddStockAsync(int productId, List<int> sizeIds, int quantityToAdd);
         Task<ServiceResponse> UpdateStockAsync(int productId, List<int> sizeIds, int newQuantity);
@@ -24,5 +23,7 @@ namespace Project1_VTCA.Services.Interface
         Task<(List<Product> Products, int TotalPages)> GetInactiveProductsAsync(int pageNumber, int pageSize);
         Task<List<Category>> GetCategoriesByTypeAsync(string type);
         Task<List<ProductSize>> GetProductSizesAsync(int productId);
+        Task<Product?> GetProductByIdIncludingInactiveAsync(int productId);
+        List<int> GetValidSizesForGender(string gender);
     }
 }

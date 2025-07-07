@@ -27,6 +27,7 @@ namespace Project1_VTCA.UI.Admin
             public int CurrentPage { get; set; } = 1;
             public int PageSize { get; set; } = 10;
             public int TotalPages { get; set; }
+            public string SortBy { get; set; } = "default";
         }
 
         public AdminProductMenu(IProductService productService, IServiceProvider serviceProvider, ConsoleLayout layout)
@@ -70,11 +71,14 @@ namespace Project1_VTCA.UI.Admin
         {
             if (choice.StartsWith("id."))
             {
-                if (int.TryParse(choice.AsSpan(3), out int productId))
+                if (choice.StartsWith("id."))
                 {
-                    await HandleViewProductDetailsAsync(productId);
+                    if (int.TryParse(choice.AsSpan(3), out int productId))
+                    {
+                        await ShowAdminProductDetailsAsync(productId);
+                    }
+                    return true;
                 }
-                return true;
             }
 
             if (choice.StartsWith("p."))
@@ -90,6 +94,8 @@ namespace Project1_VTCA.UI.Admin
                 case "3": await HandleUpdateStockAsync(); break;
                 case "4": await HandleSoftDeleteProductAsync(); break;
                 case "5": await HandleViewInactiveProductsAsync(); break;
+                case "s1": state.SortBy = "stock_desc"; state.CurrentPage = 1; break;
+                case "s2": state.SortBy = "stock_asc"; state.CurrentPage = 1; break;
                 case "n": if (state.CurrentPage < state.TotalPages) state.CurrentPage++; break;
                 case "p": if (state.CurrentPage > 1) state.CurrentPage--; break;
                 case "0": return false;
@@ -137,14 +143,14 @@ namespace Project1_VTCA.UI.Admin
                 var priceDisplay = discountedPrice.HasValue
                     ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0}[/]"
                     : $"[green]{product.Price:N0}[/]";
-                var calculatedStock = product.ProductSizes?.Sum(ps => ps.QuantityInStock ?? 0) ?? 0;
+                var calculatedStock = product.ProductSizes?.Sum(ps => ps.QuantityInStock) ?? 0;
 
                 table.AddRow(
                     new Markup(product.ProductID.ToString()),
                     new Markup(Markup.Escape(product.Name)),
                     new Markup(Markup.Escape(_productService.GetDisplayCategory(product))),
-                    new Markup($"[bold]{calculatedStock}[/]"),
-                    new Markup(priceDisplay)
+                    new Markup(calculatedStock.ToString()),
+                    new Markup($"[green]{product.Price:N0}[/]")
                 );
             }
             return table;
@@ -177,14 +183,26 @@ namespace Project1_VTCA.UI.Admin
                 }
             }
 
-            AnsiConsole.MarkupLine($"\nSản phẩm đã chọn: [yellow]{Markup.Escape(product.Name)}[/]");
+            AnsiConsole.MarkupLine($"\nSản phẩm đã chọn: [yellow]{Markup.Escape(product.Name)}[/] (Giới tính: {product.GenderApplicability})");
 
-            var productSizes = await _productService.GetProductSizesAsync(product.ProductID);
+            var allProductSizes = await _productService.GetProductSizesAsync(product.ProductID);
+
+            // Chỉ hiển thị các size hợp lệ với giới tính của sản phẩm
+            var validSizes = _productService.GetValidSizesForGender(product.GenderApplicability);
+            var filteredSizes = allProductSizes.Where(ps => validSizes.Contains(ps.Size)).ToList();
+
+            if (!filteredSizes.Any())
+            {
+                AnsiConsole.MarkupLine("[red]Sản phẩm này không có size hợp lệ để thêm hàng theo giới tính đã chọn.[/]");
+                Console.ReadKey();
+                return;
+            }
+
             var sizesToUpdate = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<ProductSize>()
-                    .Title("Chọn các [green]size[/] cần thêm hàng:")
+                    .Title($"Chọn các [green]size[/] cần thêm hàng :")
                     .PageSize(10).UseConverter(ps => $"Size {ps.Size} (Hiện có: {ps.QuantityInStock})")
-                    .AddChoices(productSizes)
+                    .AddChoices(filteredSizes)
             );
 
             if (!sizesToUpdate.Any()) return;
@@ -239,8 +257,8 @@ namespace Project1_VTCA.UI.Admin
                 var createdProduct = await _productService.AddNewProductAsync(newProduct, allCategoryIds);
                 if (createdProduct != null)
                 {
-                    AnsiConsole.MarkupLine($"[green]Đã tạo thành công sản phẩm: {Markup.Escape(createdProduct.Name)} (ID: {createdProduct.ProductID})[/]");
-                    // Bước 5
+                    AnsiConsole.MarkupLine($"[green]Đã tạo thành công sản phẩm và các size hợp lệ: {Markup.Escape(createdProduct.Name)} (ID: {createdProduct.ProductID})[/]");
+
                     if (AnsiConsole.Confirm("[cyan]Bạn có muốn tiếp tục thêm số lượng tồn kho cho sản phẩm này không?[/]"))
                     {
                         await HandleAddStockAsync(createdProduct);
@@ -264,13 +282,26 @@ namespace Project1_VTCA.UI.Admin
 
             if (product == null) { AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm.[/]"); Console.ReadKey(); return; }
 
-            var productSizes = await _productService.GetProductSizesAsync(productId);
+            AnsiConsole.MarkupLine($"\nSản phẩm đã chọn: [yellow]{Markup.Escape(product.Name)}[/] (Giới tính: {product.GenderApplicability})");
+
+            var allProductSizes = await _productService.GetProductSizesAsync(product.ProductID);
+            var validSizes = _productService.GetValidSizesForGender(product.GenderApplicability);
+            var filteredSizes = allProductSizes.Where(ps => validSizes.Contains(ps.Size)).ToList();
+
+            if (!filteredSizes.Any())
+            {
+                AnsiConsole.MarkupLine("[red]Sản phẩm này không có size hợp lệ để cập nhật hàng theo giới tính đã chọn.[/]");
+                Console.ReadKey();
+                return;
+            }
+
             var sizesToUpdate = AnsiConsole.Prompt(
                 new MultiSelectionPrompt<ProductSize>()
-                    .Title($"Chọn các [green]size[/] cần cập nhật số lượng cho [yellow]{Markup.Escape(product.Name)}[/]:")
+                    .Title($"Chọn các [green]size[/] cần cập nhật số lượng:")
                     .PageSize(10).UseConverter(ps => $"Size {ps.Size} (Hiện có: {ps.QuantityInStock})")
-                    .AddChoices(productSizes)
+                    .AddChoices(filteredSizes)
             );
+
 
             if (!sizesToUpdate.Any()) return;
 
@@ -325,7 +356,7 @@ namespace Project1_VTCA.UI.Admin
                 {
                     if (int.TryParse(choice.AsSpan(3), out int productId))
                     {
-                        await HandleViewProductDetailsAsync(productId);
+                        await HandleViewInactiveProductDetailsAsync(productId);
                     }
                     continue;
                 }
@@ -344,11 +375,68 @@ namespace Project1_VTCA.UI.Admin
             }
         }
 
-        private async Task HandleViewProductDetailsAsync(int productId)
+        private async Task HandleViewInactiveProductDetailsAsync(int productId)
         {
+            
+            var product = await _productService.GetProductByIdIncludingInactiveAsync(productId);
+
+            if (product == null)
+            {
+                AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm với ID này.[/]");
+            }
+            else
+            {
+                await ShowAdminProductDetailsAsync(productId);
+            }
+            Console.ReadKey();
+        }
+
+        private async Task ShowAdminProductDetailsAsync(int productId)
+        {
+            var product = await _productService.GetProductByIdIncludingInactiveAsync(productId);
+            if (product == null)
+            {
+                AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm với ID này.[/]");
+                Console.ReadKey();
+                return;
+            }
+
             AnsiConsole.Clear();
-            var productMenu = _serviceProvider.GetRequiredService<ProductMenu>();
-            await productMenu.HandleViewProductDetailsAsync(productId);
+
+            var infoGrid = new Grid()
+                .AddColumn().AddColumn()
+                .AddRow(new Markup("[bold]Tên sản phẩm:[/]"), new Markup(Markup.Escape(product.Name)))
+                .AddRow(new Markup("[bold]Thương hiệu:[/]"), new Markup(Markup.Escape(product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A")))
+                .AddRow(new Markup("[bold]Danh mục:[/]"), new Markup(Markup.Escape(_productService.GetDisplayCategory(product))))
+                .AddRow(new Markup("[bold]Giá gốc:[/]"), new Markup($"[yellow]{product.Price:N0} VNĐ[/]"))
+                .AddRow(new Markup("[bold]Giới tính áp dụng:[/]"), new Markup(Markup.Escape(product.GenderApplicability ?? "Không xác định")))
+                .AddRow(new Markup("[bold]Trạng thái:[/]"), product.IsActive ? new Markup("[green]Đang hoạt động[/]") : new Markup("[red]Đã gỡ[/]"));
+
+            var layoutRows = new Rows(
+                infoGrid,
+                new Rule("[yellow]Mô tả[/]").LeftJustified(),
+                new Padder(new Markup(Markup.Escape(product.Description ?? "Không có mô tả.")), new Padding(0, 0, 0, 1))
+            );
+
+            var infoPanel = new Panel(layoutRows)
+                .Header($"CHI TIẾT SẢN PHẨM - ID: {product.ProductID}")
+                .Expand();
+            AnsiConsole.Write(infoPanel);
+
+            var stockTable = new Table().Expand().Border(TableBorder.Rounded);
+            stockTable.Title = new TableTitle("Tồn kho chi tiết theo Size");
+            stockTable.AddColumn("Size");
+            stockTable.AddColumn("Số lượng trong kho");
+
+            var sizes = await _productService.GetProductSizesAsync(productId);
+            foreach (var size in sizes)
+            {
+                stockTable.AddRow(new Markup(size.Size.ToString()), new Markup(size.QuantityInStock.ToString()));
+            }
+            AnsiConsole.Write(stockTable);
+
+            AnsiConsole.MarkupLine("\n[dim]Đây là giao diện chỉ xem. Nhấn phím bất kỳ để quay lại.[/]");
+            Console.ReadKey();
         }
 
         private Table CreateInactiveProductTable(List<Product> products)
