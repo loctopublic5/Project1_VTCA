@@ -28,36 +28,56 @@ namespace Project1_VTCA.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            
-            modelBuilder.Entity<ProductCategory>().HasKey(pc => new { pc.ProductID, pc.CategoryID });
-            modelBuilder.Entity<ProductSize>().HasKey(ps => new { ps.ProductID, ps.Size });
+            // Cấu hình khóa chính cho các bảng liên kết nhiều-nhiều
+            modelBuilder.Entity<ProductCategory>()
+                .HasKey(pc => new { pc.ProductID, pc.CategoryID });
 
-            modelBuilder.Entity<Product>()
-                .Property(p => p.TotalQuantity)
-                .HasDefaultValue(0);
+            modelBuilder.Entity<ProductSize>()
+                .HasKey(ps => new { ps.ProductID, ps.Size });
 
-            
-            modelBuilder.Entity<User>()
-                .HasMany(u => u.Orders)
-                .WithOne(o => o.User)
-                .HasForeignKey(o => o.UserID)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Cấu hình mối quan hệ
+            modelBuilder.Entity<ProductCategory>()
+                .HasOne(pc => pc.Product)
+                .WithMany(p => p.ProductCategories)
+                .HasForeignKey(pc => pc.ProductID);
 
-            modelBuilder.Entity<User>()
-                .HasMany(u => u.ApprovedOrders)
-                .WithOne(o => o.ApprovedByAdmin)
-                .HasForeignKey(o => o.ApprovedByAdminID)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ProductCategory>()
+                .HasOne(pc => pc.Category)
+                .WithMany(c => c.ProductCategories)
+                .HasForeignKey(pc => pc.CategoryID);
 
-           
-            modelBuilder.Entity<Order>()
-                .HasIndex(o => o.OrderCode)
-                .IsUnique();
+            // Cấu hình cho Order
+            modelBuilder.Entity<Order>(entity =>
+            {
+                // Giữ lại cấu hình index
+                entity.HasIndex(o => o.OrderCode).IsUnique();
 
-            modelBuilder.Entity<Order>()
-                .HasMany(o => o.OrderDetails)
-                .WithOne(od => od.Order)
-                .HasForeignKey(od => od.OrderID);
+                // Cấu hình mối quan hệ 1: Một Order được đặt bởi một User (khách hàng)
+                // User này có thể có nhiều Order (ICollection<Order> Orders)
+                entity.HasOne(order => order.User)
+                      .WithMany(user => user.Orders) // Liên kết với thuộc tính 'Orders' trong lớp User
+                      .HasForeignKey(order => order.UserID) // Sử dụng khóa ngoại UserID
+                      .OnDelete(DeleteBehavior.Restrict); // Ngăn không cho xóa User nếu họ có đơn hàng
+
+                // Cấu hình mối quan hệ 2: Một Order được duyệt bởi một User (admin)
+                // User này có thể duyệt nhiều Order (ICollection<Order> ApprovedOrders)
+                entity.HasOne(order => order.ApprovedByAdmin)
+                      .WithMany(user => user.ApprovedOrders) // Liên kết với thuộc tính 'ApprovedOrders' trong lớp User
+                      .HasForeignKey(order => order.ApprovedByAdminID) // Sử dụng khóa ngoại ApprovedByAdminID
+                      .OnDelete(DeleteBehavior.Restrict); // Ngăn không cho xóa Admin nếu họ đã duyệt đơn hàng
+            });
+
+            // SỬA LỖI: Thêm cấu hình HasTrigger cho bảng ProductSizes
+            modelBuilder.Entity<ProductSize>(entity =>
+            {
+                // Giữ lại cấu hình khóa chính của bạn
+                entity.HasKey(ps => new { ps.ProductID, ps.Size });
+
+                // **THÊM CẤU HÌNH NÀY VÀO:**
+                // Thông báo cho EF Core rằng bảng này có một trigger,
+                // để nó quay lại sử dụng cơ chế SaveChanges cũ hơn và không gây xung đột.
+                entity.ToTable(tb => tb.HasTrigger("TRG_ProductSizes_UpdateTotalQuantity"));
+            });
 
 
 

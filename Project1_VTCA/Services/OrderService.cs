@@ -13,11 +13,13 @@ namespace Project1_VTCA.Services
     {
         private readonly SneakerShopDbContext _context;
         private readonly IPromotionService _promotionService;
+        private readonly IProductService _productService;
 
-        public OrderService(SneakerShopDbContext context, IPromotionService promotionService)
+        public OrderService(SneakerShopDbContext context, IPromotionService promotionService, IProductService productService)
         {
             _context = context;
             _promotionService = promotionService;
+            _productService = productService;
         }
 
         #region Customer Order Methods
@@ -270,7 +272,7 @@ namespace Project1_VTCA.Services
             return (orders, totalPages);
         }
 
-       
+
 
 
         #endregion
@@ -280,7 +282,7 @@ namespace Project1_VTCA.Services
 
         #region Admin Methods 2
 
-        
+
 
         // --- PHƯƠNG THỨC MỚI: XỬ LÝ TỪNG PHẦN VÀ KIỂM TRA TỒN KHO ---
         public async Task<ServiceResponse> AttemptToConfirmOrderAsync(int orderId, int adminId)
@@ -293,41 +295,37 @@ namespace Project1_VTCA.Services
                 {
                     var order = await _context.Orders
                         .Include(o => o.User)
-                        .Include(o => o.OrderDetails)
-                        .ThenInclude(od => od.Product)
+                        .Include(o => o.OrderDetails).ThenInclude(od => od.Product)
                         .FirstOrDefaultAsync(o => o.OrderID == orderId);
 
                     if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
                     if (order.Status != "PendingAdminApproval") return new ServiceResponse(false, "Đơn hàng đã được xử lý trước đó.");
 
-                    // BƯỚC KIỂM TRA TỒN KHO QUAN TRỌNG NHẤT
+                    var affectedProductIds = new HashSet<int>();
+
+                    // Bước 1: Trừ kho cho từng sản phẩm trong đơn hàng
                     foreach (var detail in order.OrderDetails)
                     {
                         var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
-                        if (productSize == null || (productSize.QuantityInStock ?? 0) < detail.Quantity)
+                        if (productSize == null || productSize.QuantityInStock < detail.Quantity)
                         {
-                            await transaction.RollbackAsync();
-                            return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}");
+                            throw new InvalidOperationException($"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}.");
                         }
+
+                        // Chỉ trừ kho, không cần gọi service khác
+                        productSize.QuantityInStock -= detail.Quantity;
                     }
 
-                    // Nếu tất cả sản phẩm đều đủ hàng, tiến hành xử lý
+                    // Bước 2: Cập nhật trạng thái đơn hàng và thông tin khách hàng
                     order.Status = "Processing";
                     order.ApprovedByAdminID = adminId;
-
                     decimal subTotal = order.OrderDetails.Sum(od => od.UnitPrice * od.Quantity);
                     order.User.TotalSpending += subTotal;
 
-                    // Trừ kho
-                    foreach (var detail in order.OrderDetails)
-                    {
-                        var productSize = await _context.ProductSizes.FirstAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
-                        productSize.QuantityInStock -= detail.Quantity;
-                        var product = await _context.Products.FirstAsync(p => p.ProductID == detail.ProductID);
-                        product.TotalQuantity -= detail.Quantity;
-                    }
-
+                    // Bước 3: Lưu tất cả thay đổi (Order, ProductSize, Product.TotalQuantity) trong một lần
                     await _context.SaveChangesAsync();
+
+                    // Bước 4: Commit transaction
                     await transaction.CommitAsync();
 
                     return new ServiceResponse(true, "Xác nhận thành công.");
@@ -335,7 +333,7 @@ namespace Project1_VTCA.Services
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    return new ServiceResponse(false, $"Lỗi hệ thống: {ex.Message}");
+                    return new ServiceResponse(false, $"Lỗi hệ thống khi xác nhận đơn hàng: {ex.Message}");
                 }
             });
         }
