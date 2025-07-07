@@ -57,7 +57,7 @@ class Program
         builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
         builder.Services.AddTransient<IAdminOrderMenu, AdminOrderMenu>();
         builder.Services.AddTransient<IAdminCustomerMenu, AdminCustomerMenu>();
-
+        builder.Services.AddTransient<IAdminProductMenu, AdminProductMenu>();
 
         using var host = builder.Build();
 

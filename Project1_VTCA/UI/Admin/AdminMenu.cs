@@ -9,13 +9,15 @@ namespace Project1_VTCA.UI.Admin
     public class AdminMenu : IAdminMenu
     {
         private readonly IAdminOrderMenu _adminOrderMenu;
-        private readonly IAdminCustomerMenu _adminCustomerMenu; 
+        private readonly IAdminCustomerMenu _adminCustomerMenu;
+        private readonly IAdminProductMenu _adminProductMenu;
         private readonly ISessionService _sessionService;
 
-        public AdminMenu(IAdminOrderMenu adminOrderMenu, IAdminCustomerMenu adminCustomerMenu, ISessionService sessionService)
+        public AdminMenu(IAdminOrderMenu adminOrderMenu, IAdminCustomerMenu adminCustomerMenu,IAdminProductMenu adminProductMenu, ISessionService sessionService)
         {
             _adminOrderMenu = adminOrderMenu;
-            _adminCustomerMenu = adminCustomerMenu; 
+            _adminCustomerMenu = adminCustomerMenu;
+            _adminProductMenu = adminProductMenu;
             _sessionService = sessionService;
         }
 
@@ -31,7 +33,7 @@ namespace Project1_VTCA.UI.Admin
                     .Title("\n[bold]Chọn một chức năng quản trị:[/]")
                     .AddChoices(new[] {
                         "Quản lý Đơn hàng",
-                        "Quản lý Sản phẩm (sắp có)",
+                        "Quản lý Sản phẩm ",
                         "Quản lý Khách hàng ",
                         "[red]Đăng xuất[/]"
                     })
@@ -42,9 +44,8 @@ namespace Project1_VTCA.UI.Admin
                     case "Quản lý Đơn hàng":
                         await _adminOrderMenu.ShowAsync();
                         break;
-                    case "Quản lý Sản phẩm (sắp có)":
-                        AnsiConsole.MarkupLine("[yellow]Chức năng đang được xây dựng.[/]");
-                        Console.ReadKey();
+                    case "Quản lý Sản phẩm ":
+                        await _adminProductMenu.ShowAsync();
                         break;
                     case "Quản lý Khách hàng ":
                         await _adminCustomerMenu.ShowAsync(); 

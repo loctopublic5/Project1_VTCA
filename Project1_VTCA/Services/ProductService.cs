@@ -19,13 +19,28 @@ namespace Project1_VTCA.Services
             _promotionService = promotionService;
         }
 
-        // Trả về câu truy vấn gốc để có thể xây dựng tiếp
+        #region CUSTOMER METHODS
         public IQueryable<Product> GetActiveProductsQuery()
         {
             return _context.Products
                 .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
+                .Include(p => p.ProductSizes) 
                 .Where(p => p.IsActive);
+        }
+
+        
+        public async Task<(List<Product> Products, int TotalPages)> GetInactiveProductsAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Products
+                .Include(p => p.ProductSizes) 
+                .Where(p => !p.IsActive)
+                .OrderByDescending(p => p.ProductID);
+
+            var totalProducts = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+            var products = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (products, totalPages);
         }
 
         // Áp dụng các bộ lọc và phân trang vào một câu truy vấn có sẵn
@@ -43,6 +58,8 @@ namespace Project1_VTCA.Services
             var products = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
             return (products, totalPages);
         }
+
+       
 
         public string GetDisplayCategory(Product product)
         {
@@ -103,5 +120,125 @@ namespace Project1_VTCA.Services
                 .Include(p => p.ProductSizes)
                 .FirstOrDefaultAsync(p => p.ProductID == productId && p.IsActive);
         }
+        #endregion
+
+        #region ADMIN METHODS
+
+
+        public async Task<Product?> AddNewProductAsync(Product newProduct, List<int> categoryIds)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Bước 1: Thêm sản phẩm chính
+                    _context.Products.Add(newProduct);
+                    await _context.SaveChangesAsync(); // Lưu để lấy ProductID
+
+                    // Bước 2: Thêm các liên kết danh mục
+                    foreach (var categoryId in categoryIds)
+                    {
+                        var productCategory = new ProductCategory
+                        {
+                            ProductID = newProduct.ProductID,
+                            CategoryID = categoryId
+                        };
+                        _context.ProductCategories.Add(productCategory);
+                    }
+                    await _context.SaveChangesAsync();
+
+                    // Bước 3: Tạo các bản ghi ProductSize với tồn kho = 0
+                    var availableSizes = new List<int>();
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
+                        availableSizes.AddRange(Enumerable.Range(38, 8)); // 38-45
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
+                        availableSizes.AddRange(Enumerable.Range(35, 5)); // 35-39
+
+                    foreach (var size in availableSizes.Distinct().OrderBy(s => s))
+                    {
+                        var productSize = new ProductSize
+                        {
+                            ProductID = newProduct.ProductID,
+                            Size = size,
+                            QuantityInStock = 0
+                        };
+                        _context.ProductSizes.Add(productSize);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return newProduct;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    return null;
+                }
+            });
+        }
+
+        public async Task<ServiceResponse> AddStockAsync(int productId, List<int> sizeIds, int quantityToAdd)
+        {
+            if (quantityToAdd <= 0) return new ServiceResponse(false, "Số lượng thêm vào phải lớn hơn 0.");
+
+            var sizesToUpdate = await _context.ProductSizes
+                .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
+                .ToListAsync();
+
+            if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
+
+            foreach (var size in sizesToUpdate)
+            {
+                size.QuantityInStock = (size.QuantityInStock ?? 0) + quantityToAdd;
+            }
+
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, $"Đã thêm thành công {quantityToAdd} sản phẩm cho {sizesToUpdate.Count} size đã chọn.");
+        }
+
+        public async Task<ServiceResponse> UpdateStockAsync(int productId, List<int> sizeIds, int newQuantity)
+        {
+            if (newQuantity < 0) return new ServiceResponse(false, "Số lượng mới không thể là số âm.");
+
+            var sizesToUpdate = await _context.ProductSizes
+                .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
+                .ToListAsync();
+
+            if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
+
+            foreach (var size in sizesToUpdate)
+            {
+                size.QuantityInStock = newQuantity;
+            }
+
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, $"Đã cập nhật tồn kho thành {newQuantity} cho {sizesToUpdate.Count} size đã chọn.");
+        }
+
+        public async Task<ServiceResponse> SoftDeleteProductAsync(int productId)
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product == null) return new ServiceResponse(false, "Không tìm thấy sản phẩm.");
+
+            product.IsActive = false;
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Đã gỡ sản phẩm khỏi kệ thành công.");
+        }
+
+        
+
+        public async Task<List<Category>> GetCategoriesByTypeAsync(string type)
+        {
+            return await _context.Categories.Where(c => c.CategoryType == type).ToListAsync();
+        }
+
+        public async Task<List<ProductSize>> GetProductSizesAsync(int productId)
+        {
+            return await _context.ProductSizes.Where(ps => ps.ProductID == productId).OrderBy(ps => ps.Size).ToListAsync();
+        }
+
+        #endregion
     }
 }
