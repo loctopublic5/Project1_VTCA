@@ -197,31 +197,31 @@ namespace Project1_VTCA.Services
                     if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
                     if (order.Status != "PendingAdminApproval") return new ServiceResponse(false, "Đơn hàng đã được xử lý trước đó.");
 
-                    // BƯỚC 1: KIỂM TRA TỒN KHO LẦN CUỐI
+                    // ... (kiểm tra tồn kho lần cuối không đổi)
                     foreach (var detail in order.OrderDetails)
                     {
                         var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
                         if (productSize == null || (productSize.QuantityInStock ?? 0) < detail.Quantity)
                         {
-                            await transaction.RollbackAsync(); // Hủy bỏ ngay lập tức
-                            return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}. Đơn hàng không được xác nhận.");
+                            throw new InvalidOperationException($"Không đủ tồn kho cho sản phẩm '{detail.Product.Name}' - Size {detail.Size}.");
                         }
                     }
 
-                    // BƯỚC 2: NẾU ĐỦ HÀNG, TIẾN HÀNH TRỪ KHO VÀ CẬP NHẬT
+                    // Tiến hành xử lý
                     foreach (var detail in order.OrderDetails)
                     {
+                        // Trừ kho chi tiết
                         var productSize = await _context.ProductSizes.FirstAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
                         productSize.QuantityInStock -= detail.Quantity;
 
+                        // SỬA LỖI: Cập nhật tổng kho của sản phẩm ngay trong transaction
                         var product = await _context.Products.FirstAsync(p => p.ProductID == detail.ProductID);
                         product.TotalQuantity -= detail.Quantity;
                     }
 
-                    // BƯỚC 3: CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG VÀ CHI TIÊU CỦA USER
+                    // Cập nhật trạng thái và thông tin khác
                     order.Status = "Processing";
                     order.ApprovedByAdminID = adminId;
-
                     decimal subTotal = order.OrderDetails.Sum(od => od.UnitPrice * od.Quantity);
                     order.User.TotalSpending += subTotal;
 

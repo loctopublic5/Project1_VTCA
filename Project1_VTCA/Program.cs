@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
@@ -24,6 +25,10 @@ class Program
         Console.InputEncoding = System.Text.Encoding.UTF8;
 
         var builder = Host.CreateApplicationBuilder(args);
+
+        builder.Logging.ClearProviders(); // Xóa các nhà cung cấp log mặc định nếu cần
+        builder.Logging.AddConsole(); // Thêm lại Console logger
+        builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 

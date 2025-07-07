@@ -25,5 +25,6 @@ namespace Project1_VTCA.Services.Interface
         Task<List<ProductSize>> GetProductSizesAsync(int productId);
         Task<Product?> GetProductByIdIncludingInactiveAsync(int productId);
         List<int> GetValidSizesForGender(string gender);
+
     }
 }

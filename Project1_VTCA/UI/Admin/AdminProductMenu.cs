@@ -162,115 +162,106 @@ namespace Project1_VTCA.UI.Admin
 
         private async Task HandleAddStockAsync(Product? preselectedProduct = null)
         {
-            AnsiConsole.Clear();
-            _layout.Render(
-                new Markup("[bold]THÊM SỐ LƯỢNG HÀNG[/]"),
-                new Text("Điền thông tin vào các bước bên dưới."),
-                new Markup("[dim]Nhập '0' hoặc 'exit' ở bất kỳ bước nào để hủy.[/]")
-            );
-
-            Product? product = preselectedProduct;
-            if (product == null)
+            await _layout.RenderFormLayoutAsync("THÊM SỐ LƯỢNG HÀNG (CỘNG DỒN)", async () =>
             {
-                var productId = AnsiConsole.Ask<string>("\nNhập [green]ID Sản phẩm[/] cần thêm hàng:");
-                if (productId == "0" || productId.ToLower() == "exit") return;
-
-                if (!int.TryParse(productId, out int id) || (product = await _productService.GetProductByIdAsync(id)) == null)
+                Product? product = preselectedProduct;
+                if (product == null)
                 {
-                    AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm với ID này.[/]");
+                    var productIdStr = AnsiConsole.Ask<string>("\nNhập [green]ID Sản phẩm[/] cần thêm hàng (hoặc '[red]exit[/]'):");
+                    if (productIdStr.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
+
+                    if (!int.TryParse(productIdStr, out int id) || (product = await _productService.GetProductByIdIncludingInactiveAsync(id)) == null)
+                    {
+                        AnsiConsole.MarkupLine("[red]Lỗi: Không tìm thấy sản phẩm với ID này.[/]");
+                        Console.ReadKey();
+                        return;
+                    }
+                }
+
+                // TÍCH HỢP: Hiển thị thông tin chi tiết đầy đủ thay vì tóm tắt
+                await ShowAdminProductDetailsAsync(product.ProductID);
+                AnsiConsole.Write(new Rule("[yellow]Thao tác thêm kho[/]").Centered());
+
+                var productSizes = await _productService.GetProductSizesAsync(product.ProductID);
+                var validSizes = _productService.GetValidSizesForGender(product.GenderApplicability);
+                var filteredSizes = productSizes.Where(ps => validSizes.Contains(ps.Size)).ToList();
+
+                if (!filteredSizes.Any())
+                {
+                    AnsiConsole.MarkupLine("[red]Sản phẩm này không có size hợp lệ để thêm hàng.[/]");
                     Console.ReadKey();
                     return;
                 }
-            }
 
-            AnsiConsole.MarkupLine($"\nSản phẩm đã chọn: [yellow]{Markup.Escape(product.Name)}[/] (Giới tính: {product.GenderApplicability})");
+                var sizesToUpdate = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<ProductSize>()
+                        .Title("Chọn các [green]size[/] cần thêm hàng:")
+                        .PageSize(10).UseConverter(ps => $"Size {ps.Size} (Hiện có: {ps.QuantityInStock})")
+                        .AddChoices(filteredSizes)
+                );
 
-            var allProductSizes = await _productService.GetProductSizesAsync(product.ProductID);
+                if (!sizesToUpdate.Any()) return;
 
-            // Chỉ hiển thị các size hợp lệ với giới tính của sản phẩm
-            var validSizes = _productService.GetValidSizesForGender(product.GenderApplicability);
-            var filteredSizes = allProductSizes.Where(ps => validSizes.Contains(ps.Size)).ToList();
-
-            if (!filteredSizes.Any())
-            {
-                AnsiConsole.MarkupLine("[red]Sản phẩm này không có size hợp lệ để thêm hàng theo giới tính đã chọn.[/]");
-                Console.ReadKey();
-                return;
-            }
-
-            var sizesToUpdate = AnsiConsole.Prompt(
-                new MultiSelectionPrompt<ProductSize>()
-                    .Title($"Chọn các [green]size[/] cần thêm hàng :")
-                    .PageSize(10).UseConverter(ps => $"Size {ps.Size} (Hiện có: {ps.QuantityInStock})")
-                    .AddChoices(filteredSizes)
-            );
-
-            if (!sizesToUpdate.Any()) return;
-
-            var quantityToAdd = AnsiConsole.Ask<int>("Nhập [green]số lượng cần cộng thêm[/] cho mỗi size đã chọn:");
-            if (quantityToAdd <= 0)
-            {
-                AnsiConsole.MarkupLine("[red]Lỗi: Số lượng thêm vào phải lớn hơn 0.[/]");
-                Console.ReadKey();
-                return;
-            }
-
-            if (AnsiConsole.Confirm($"Bạn có chắc muốn cộng thêm [yellow]{quantityToAdd}[/] sản phẩm cho [yellow]{sizesToUpdate.Count}[/] size đã chọn không?"))
-            {
-                var sizeIds = sizesToUpdate.Select(s => s.Size).ToList();
-                var response = await _productService.AddStockAsync(product.ProductID, sizeIds, quantityToAdd);
-                AnsiConsole.MarkupLine($"\n[{(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]");
-                Console.ReadKey();
-            }
-        }
-
-        private async Task HandleAddNewProductAsync()
-        {
-            AnsiConsole.Clear();
-            _layout.Render(
-                new Markup("[bold]THÊM SẢN PHẨM MỚI[/]"),
-                new Text("Vui lòng điền thông tin vào các bước bên dưới."),
-                new Markup("[dim]Nhập 'exit' ở bất kỳ bước nào để hủy.[/]")
-            );
-
-            // Bước 1
-            var brands = await _productService.GetCategoriesByTypeAsync("Brand");
-            var styles = await _productService.GetCategoriesByTypeAsync("Product");
-            var selectedBrand = AnsiConsole.Prompt(new SelectionPrompt<Category>().Title("Bước 1: Chọn [green]Thương hiệu[/]:").AddChoices(brands).UseConverter(c => c.Name));
-            var selectedStyles = AnsiConsole.Prompt(new MultiSelectionPrompt<Category>().Title("Bước 2: Chọn [green]Danh mục/Phong cách[/] (danh mục đầu tiên sẽ là chính):").AddChoices(styles).UseConverter(c => c.Name));
-            if (!selectedStyles.Any()) { AnsiConsole.MarkupLine("[red]Bạn phải chọn ít nhất một danh mục.[/]"); Console.ReadKey(); return; }
-
-            // Bước 2
-            var name = AnsiConsole.Ask<string>("Bước 3: Nhập [green]Tên sản phẩm[/]:");
-            var description = AnsiConsole.Ask<string>("Bước 4: Nhập [green]Mô tả[/]:");
-            var price = AnsiConsole.Ask<decimal>("Bước 5: Nhập [green]Đơn giá[/] (VNĐ):");
-
-            // Bước 3
-            var gender = AnsiConsole.Prompt(new SelectionPrompt<string>().Title("Bước 6: Chọn [green]Giới tính[/] áp dụng:").AddChoices("Unisex", "Male", "Female"));
-
-            // Bước 4
-            var newProduct = new Product { Name = name, Description = description, Price = price, GenderApplicability = gender, IsActive = true, TotalQuantity = 0 };
-            var allCategoryIds = new List<int> { selectedBrand.CategoryID }.Concat(selectedStyles.Select(s => s.CategoryID)).ToList();
-
-            if (AnsiConsole.Confirm("\nXác nhận tạo sản phẩm với các thông tin trên?"))
-            {
-                var createdProduct = await _productService.AddNewProductAsync(newProduct, allCategoryIds);
-                if (createdProduct != null)
+                var quantityToAdd = AnsiConsole.Ask<int>("Nhập [green]số lượng cần cộng thêm[/] cho mỗi size đã chọn:");
+                if (quantityToAdd <= 0)
                 {
-                    AnsiConsole.MarkupLine($"[green]Đã tạo thành công sản phẩm và các size hợp lệ: {Markup.Escape(createdProduct.Name)} (ID: {createdProduct.ProductID})[/]");
-
-                    if (AnsiConsole.Confirm("[cyan]Bạn có muốn tiếp tục thêm số lượng tồn kho cho sản phẩm này không?[/]"))
-                    {
-                        await HandleAddStockAsync(createdProduct);
-                    }
+                    AnsiConsole.MarkupLine("[red]Lỗi: Số lượng thêm vào phải lớn hơn 0.[/]");
+                    Console.ReadKey();
+                    return;
                 }
-                else
+
+                if (AnsiConsole.Confirm($"Bạn có chắc muốn cộng thêm [yellow]{quantityToAdd}[/] sản phẩm cho [yellow]{sizesToUpdate.Count}[/] size đã chọn không?"))
                 {
-                    AnsiConsole.MarkupLine("[red]Lỗi: Không thể tạo sản phẩm mới.[/]");
+                    var sizeIds = sizesToUpdate.Select(s => s.Size).ToList();
+                    var response = await _productService.AddStockAsync(product.ProductID, sizeIds, quantityToAdd);
+                    AnsiConsole.MarkupLine($"\n[{(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]");
                     Console.ReadKey();
                 }
-            }
+            });
         }
+
+        // TÁI CẤU TRÚC: Sử dụng RenderFormLayout
+        private async Task HandleAddNewProductAsync()
+        {
+            await _layout.RenderFormLayoutAsync("THÊM SẢN PHẨM MỚI", async () =>
+            {
+                var brands = await _productService.GetCategoriesByTypeAsync("Brand");
+                var styles = (await _productService.GetCategoriesByTypeAsync("Product"))
+                                .Where(c => c.ParentID != null).ToList();
+
+                var selectedBrand = AnsiConsole.Prompt(new SelectionPrompt<Category>().Title("Bước 1: Chọn [green]Thương hiệu[/]:").AddChoices(brands).UseConverter(c => c.Name));
+                var selectedStyles = AnsiConsole.Prompt(new MultiSelectionPrompt<Category>().Title("Bước 2: Chọn [green]Danh mục/Phong cách[/]:").AddChoices(styles).UseConverter(c => c.Name));
+                if (!selectedStyles.Any()) { AnsiConsole.MarkupLine("[red]Bạn phải chọn ít nhất một danh mục.[/]"); Console.ReadKey(); return; }
+
+                var name = AnsiConsole.Ask<string>("Bước 3: Nhập [green]Tên sản phẩm[/]:");
+                var description = AnsiConsole.Ask<string>("Bước 4: Nhập [green]Mô tả[/]:");
+                var price = AnsiConsole.Ask<decimal>("Bước 5: Nhập [green]Đơn giá[/] (VNĐ):");
+                var gender = AnsiConsole.Prompt(new SelectionPrompt<string>().Title("Bước 6: Chọn [green]Giới tính[/] áp dụng:").AddChoices("Unisex", "Male", "Female"));
+
+                var newProduct = new Product { Name = name, Description = description, Price = price, GenderApplicability = gender, IsActive = true };
+                var allCategoryIds = new List<int> { selectedBrand.CategoryID }.Concat(selectedStyles.Select(s => s.CategoryID)).ToList();
+
+                if (AnsiConsole.Confirm("\nXác nhận tạo sản phẩm với các thông tin trên?"))
+                {
+                    var createdProduct = _productService.AddNewProductAsync(newProduct, allCategoryIds).Result;
+                    if (createdProduct != null)
+                    {
+                        AnsiConsole.MarkupLine($"[green]Đã tạo thành công sản phẩm: {Markup.Escape(createdProduct.Name)} (ID: {createdProduct.ProductID})[/]");
+                        if (AnsiConsole.Confirm("[cyan]Bạn có muốn tiếp tục thêm số lượng tồn kho cho sản phẩm này không?[/]"))
+                        {
+                            // Gọi lại luồng thêm kho, truyền sản phẩm vừa tạo vào
+                            HandleAddStockAsync(createdProduct).Wait();
+                        }
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[red]Lỗi: Không thể tạo sản phẩm mới.[/]");
+                        Console.ReadKey();
+                    }
+                }
+            });
+        }
+
 
 
         private async Task HandleUpdateStockAsync()
@@ -435,7 +426,7 @@ namespace Project1_VTCA.UI.Admin
             }
             AnsiConsole.Write(stockTable);
 
-            AnsiConsole.MarkupLine("\n[dim]Đây là giao diện chỉ xem. Nhấn phím bất kỳ để quay lại.[/]");
+            AnsiConsole.MarkupLine("\n[dim] Nhấn phím bất kỳ để tiếp tục.[/]");
             Console.ReadKey();
         }
 

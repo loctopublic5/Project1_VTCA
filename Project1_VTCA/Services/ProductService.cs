@@ -130,6 +130,18 @@ namespace Project1_VTCA.Services
 
         #region ADMIN METHODS
 
+        private async Task UpdateTotalQuantityAsync(int productId)
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product != null)
+            {
+                // Tính tổng tồn kho từ các size và cập nhật
+                var totalStock = await _context.ProductSizes
+                    .Where(ps => ps.ProductID == productId)
+                    .SumAsync(ps => ps.QuantityInStock ?? 0);
+                product.TotalQuantity = totalStock;
+            }
+        }
         public List<int> GetValidSizesForGender(string gender)
         {
             return gender switch
@@ -201,6 +213,7 @@ namespace Project1_VTCA.Services
                 size.QuantityInStock = (size.QuantityInStock ?? 0) + quantityToAdd;
             }
 
+            await UpdateTotalQuantityAsync(productId);
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã thêm thành công {quantityToAdd} sản phẩm cho {sizesToUpdate.Count} size đã chọn.");
         }
@@ -220,6 +233,7 @@ namespace Project1_VTCA.Services
                 size.QuantityInStock = newQuantity;
             }
 
+            await UpdateTotalQuantityAsync(productId);
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã cập nhật tồn kho thành {newQuantity} cho {sizesToUpdate.Count} size đã chọn.");
         }
