@@ -201,9 +201,19 @@ namespace Project1_VTCA.UI.Customer
         // NÂNG CẤP: Yêu cầu nhập OrderID (int) thay vì OrderCode (string)
         private async Task HandleCancelOrder()
         {
-            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy:");
-            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
+            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy (hoặc 0 để quay lại):");
+            if (orderId == 0) return;
 
+            // Bước 1: Lấy thông tin đơn hàng trước để có thể truy cập TotalPrice sau này
+            var orderToCancel = await _orderService.GetOrderByIdAsync(orderId, _sessionService.CurrentUser.UserID);
+            if (orderToCancel == null)
+            {
+                AnsiConsole.MarkupLine("[red]Lỗi: ID đơn hàng không hợp lệ hoặc không phải của bạn.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
             if (string.IsNullOrWhiteSpace(reason))
             {
                 AnsiConsole.MarkupLine("[red]Lý do hủy không được để trống.[/]");
@@ -213,7 +223,19 @@ namespace Project1_VTCA.UI.Customer
 
             if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
+                // Bước 2: Gọi service để thực hiện hành động hủy trong CSDL
                 var response = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
+
+                // Bước 3: Nếu CSDL cập nhật thành công, hãy cập nhật lại session
+                if (response.IsSuccess)
+                {
+                    // Hoàn tiền vào session nếu cần
+                    if (orderToCancel.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                    {
+                        _sessionService.CurrentUser.Balance += orderToCancel.TotalPrice;
+                    }
+                }
+
                 string color = response.IsSuccess ? "green" : "red";
                 AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
                 Console.ReadKey();
