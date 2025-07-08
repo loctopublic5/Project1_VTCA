@@ -44,14 +44,20 @@ namespace Project1_VTCA.UI.Draw
             AnsiConsole.Clear();
             AnsiConsole.Write(mainGrid);
         }
-        public void RenderFormLayout(string title, Action formContent)
+        public async Task RenderFormLayoutAsync(string title, Func<Task> formContentAsync)
         {
             AnsiConsole.Clear();
-            AnsiConsole.Write(new Rule($"[bold yellow]{title}[/]").Centered());
+            AnsiConsole.Write(new Rule($"[bold yellow]{Markup.Escape(title)}[/]").Centered());
             AnsiConsole.WriteLine();
 
-            // Gọi Action để hiển thị các câu lệnh nhập liệu
-            formContent?.Invoke();
+            // Thực thi nội dung của form một cách bất đồng bộ
+            if (formContentAsync != null)
+            {
+                await formContentAsync();
+            }
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(new Rule().Centered());
         }
     }
 }

@@ -19,13 +19,28 @@ namespace Project1_VTCA.Services
             _promotionService = promotionService;
         }
 
-        // Trả về câu truy vấn gốc để có thể xây dựng tiếp
+        #region CUSTOMER METHODS
         public IQueryable<Product> GetActiveProductsQuery()
         {
             return _context.Products
                 .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
+                .Include(p => p.ProductSizes) 
                 .Where(p => p.IsActive);
+        }
+
+        
+        public async Task<(List<Product> Products, int TotalPages)> GetInactiveProductsAsync(int pageNumber, int pageSize)
+        {
+            var query = _context.Products
+                .Include(p => p.ProductSizes) 
+                .Where(p => !p.IsActive)
+                .OrderByDescending(p => p.ProductID);
+
+            var totalProducts = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalProducts / (double)pageSize);
+            var products = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (products, totalPages);
         }
 
         // Áp dụng các bộ lọc và phân trang vào một câu truy vấn có sẵn
@@ -35,6 +50,12 @@ namespace Project1_VTCA.Services
             {
                 case "price_desc": query = query.OrderByDescending(p => p.Price); break;
                 case "price_asc": query = query.OrderBy(p => p.Price); break;
+                case "stock_desc": 
+                    query = query.OrderByDescending(p => p.TotalQuantity) ;
+                    break;
+                case "stock_asc": 
+                    query = query.OrderBy(p => p.TotalQuantity);
+                    break;
                 default: query = query.OrderByDescending(p => p.ProductID); break;
             }
 
@@ -43,6 +64,8 @@ namespace Project1_VTCA.Services
             var products = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
             return (products, totalPages);
         }
+
+       
 
         public string GetDisplayCategory(Product product)
         {
@@ -103,5 +126,164 @@ namespace Project1_VTCA.Services
                 .Include(p => p.ProductSizes)
                 .FirstOrDefaultAsync(p => p.ProductID == productId && p.IsActive);
         }
+        #endregion
+
+        #region ADMIN METHODS
+
+        //private async Task UpdateTotalQuantityAsync(int productId)
+        //{
+        //    var product = await _context.Products.FindAsync(productId);
+        //    if (product != null)
+        //    {
+        //        var totalStock = await _context.ProductSizes
+        //            .Where(ps => ps.ProductID == productId)
+        //            .SumAsync(ps => ps.QuantityInStock ?? 0);
+        //        product.TotalQuantity = totalStock;
+        //    }
+        //}
+
+
+
+        public List<int> GetValidSizesForGender(string gender)
+        {
+            return gender switch
+            {
+                "Male" => Enumerable.Range(40, 6).ToList(),    // 40-45
+                "Female" => Enumerable.Range(35, 5).ToList(),  // 35-39
+                "Unisex" => Enumerable.Range(35, 10).ToList(), // 36-45
+                _ => new List<int>()
+            };
+        }
+        public async Task<Product?> GetProductByIdIncludingInactiveAsync(int productId)
+        {
+            return await _context.Products
+                .Include(p => p.ProductCategories).ThenInclude(pc => pc.Category)
+                .Include(p => p.ProductSizes)
+                // KHÔNG có điều kiện Where(p => p.IsActive)
+                .FirstOrDefaultAsync(p => p.ProductID == productId);
+        }
+        public async Task<Product?> AddNewProductAsync(Product newProduct, List<int> categoryIds)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    _context.Products.Add(newProduct);
+                    await _context.SaveChangesAsync();
+
+                    foreach (var categoryId in categoryIds)
+                    {
+                        var productCategory = new ProductCategory { ProductID = newProduct.ProductID, CategoryID = categoryId };
+                        _context.ProductCategories.Add(productCategory);
+                    }
+                    await _context.SaveChangesAsync();
+
+                    // Chỉ tạo các bản ghi size hợp lệ với giới tính đã chọn
+                    var validSizes = GetValidSizesForGender(newProduct.GenderApplicability);
+                    foreach (var size in validSizes)
+                    {
+                        var productSize = new ProductSize { ProductID = newProduct.ProductID, Size = size, QuantityInStock = 0 };
+                        _context.ProductSizes.Add(productSize);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return newProduct;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    return null;
+                }
+            });
+        }
+
+        public async Task<ServiceResponse> AddStockAsync(int productId, List<int> sizeIds, int quantityToAdd)
+        {
+            if (quantityToAdd <= 0) return new ServiceResponse(false, "Số lượng thêm vào phải lớn hơn 0.");
+            var sizesToUpdate = await _context.ProductSizes
+                .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
+                .ToListAsync();
+            if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
+
+            foreach (var size in sizesToUpdate)
+            {
+                size.QuantityInStock += quantityToAdd;
+            }
+           
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, $"Đã thêm thành công {quantityToAdd} sản phẩm.");
+        }
+
+        public async Task<ServiceResponse> UpdateStockAsync(int productId, List<int> sizeIds, int newQuantity)
+        {
+            if (newQuantity < 0) return new ServiceResponse(false, "Số lượng mới không thể là số âm.");
+            var sizesToUpdate = await _context.ProductSizes
+                .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
+                .ToListAsync();
+            if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
+
+            foreach (var size in sizesToUpdate)
+            {
+                size.QuantityInStock = newQuantity;
+            }
+           
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, $"Đã cập nhật tồn kho thành công.");
+        }
+
+        public async Task<ServiceResponse> SoftDeleteProductAsync(int productId)
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product == null) return new ServiceResponse(false, "Không tìm thấy sản phẩm.");
+
+            product.IsActive = false;
+            await _context.SaveChangesAsync();
+            return new ServiceResponse(true, "Đã gỡ sản phẩm khỏi kệ thành công.");
+        }
+
+        //public async Task<ServiceResponse> DecreaseStockForOrderAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
+        //{
+        //    var productSize = await transactionContext.ProductSizes
+        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
+
+        //    if (productSize == null || productSize.QuantityInStock < quantity)
+        //    {
+        //        var productName = (await transactionContext.Products.FindAsync(productId))?.Name ?? "Không rõ";
+        //        return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{productName}' - Size {size}");
+        //    }
+
+        //    productSize.QuantityInStock -= quantity;
+        //    // Logic cập nhật tổng kho đã được loại bỏ
+
+        //    return new ServiceResponse(true, "Trừ kho thành công trong context.");
+        //}
+
+        //public async Task<ServiceResponse> IncreaseStockFromCancellationAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
+        //{
+        //    var productSize = await transactionContext.ProductSizes
+        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
+
+        //    if (productSize != null)
+        //    {
+        //        productSize.QuantityInStock += quantity;
+        //    }
+            
+        //    return new ServiceResponse(true, "Hoàn kho thành công trong context.");
+        //}
+
+        public async Task<List<Category>> GetCategoriesByTypeAsync(string type)
+        {
+            return await _context.Categories.Where(c => c.CategoryType == type).ToListAsync();
+        }
+
+        public async Task<List<ProductSize>> GetProductSizesAsync(int productId)
+        {
+            return await _context.ProductSizes.Where(ps => ps.ProductID == productId).OrderBy(ps => ps.Size).ToListAsync();
+        }
+
+        #endregion
     }
 }

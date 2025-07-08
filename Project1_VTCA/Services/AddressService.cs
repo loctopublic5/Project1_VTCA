@@ -32,7 +32,7 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Xóa địa chỉ thành công.");
         }
 
-        // ... các phương thức khác của AddressService không đổi
+        
         #region Other AddressService Methods
         public async Task<List<Address>> GetActiveAddressesAsync(int userId)
         {
@@ -42,7 +42,7 @@ namespace Project1_VTCA.Services
                 .ToListAsync();
         }
 
-        public async Task<ServiceResponse> AddAddressAsync(Address newAddress)
+        public async Task<(ServiceResponse Response, Address? NewAddress)> AddAddressAsync(Address newAddress)
         {
             var userAddresses = await GetActiveAddressesAsync(newAddress.UserID);
 
@@ -61,7 +61,7 @@ namespace Project1_VTCA.Services
 
             _context.Addresses.Add(newAddress);
             await _context.SaveChangesAsync();
-            return new ServiceResponse(true, "Thêm địa chỉ mới thành công.");
+            return (new ServiceResponse(true, "Thêm địa chỉ mới thành công."), newAddress);
         }
 
         public async Task<ServiceResponse> UpdateAddressAsync(Address addressToUpdate)

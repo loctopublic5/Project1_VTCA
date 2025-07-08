@@ -35,7 +35,7 @@ namespace Project1_VTCA.UI.Customer
 
                 var menuContent = CreateMenu();
                 var viewContent = CreateOrderTable(orders);
-                var notification = new Markup("[dim]Chọn bộ lọc, hoặc nhập 'or.{id}' để xem chi tiết.[/]");
+                var notification = CreateNotificationPanel(pageNumber, totalPages);
 
                 _layout.Render(menuContent, viewContent, notification);
 
@@ -55,11 +55,10 @@ namespace Project1_VTCA.UI.Customer
                     case "1": currentFilter = null; break;
                     case "2": currentFilter = "PendingAdminApproval"; break;
                     case "3": currentFilter = "Processing"; break;
-                    case "4": currentFilter = "CancellationRequested"; break;
+                    case "4": currentFilter = "CustomerCancelled|RejectedByAdmin|Canceled"; break;
                     case "5":
-                        currentFilter = "RejectedByAdmin|Cancelled|CustomerCancelled";
-                        break;
-                    case "6": await HandleCancelOrder(); break;
+                        await HandleCancelOrder(); break;
+
                     case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
                     case "p": if (pageNumber > 1) pageNumber--; break; // Previous page
                     case "0": return;
@@ -67,9 +66,6 @@ namespace Project1_VTCA.UI.Customer
                 }
             }
         }
-
-
-        // ... (các phương thức khác của OrderHistoryMenu)
 
         #region Helper Methods
         private Markup CreateMenu()
@@ -80,10 +76,9 @@ namespace Project1_VTCA.UI.Customer
 " 1. Xem Tất cả\n" +
 " 2. Đơn hàng Chờ xác nhận\n" +
 " 3. Đơn hàng Đã xác nhận\n" +
-" 4. Đơn hàng chờ huỷ\n" +
-" 5. Đơn hàng Đã hủy\n\n" +
+" 4. Đơn hàng Đã hủy\n\n" +
 "[bold]Hành động:[/]\n" +
-" 6. Hủy một đơn hàng\n\n" +
+" 5. Hủy một đơn hàng\n\n" +
 " [red]0. Quay lại[/]"
             );
         }
@@ -132,6 +127,15 @@ namespace Project1_VTCA.UI.Customer
             return table;
         }
 
+        // Modified: Remove OrderHistoryState, use pageNumber and totalPages
+        private Markup CreateNotificationPanel(int currentPage, int totalPages)
+        {
+            var totalSpending = _sessionService.CurrentUser.TotalSpending;
+            var spendingText = $"[cyan]Tổng chi tiêu: {totalSpending:N0} VNĐ[/]. ";
+
+            return new Markup($"Trang [bold yellow]{currentPage}[/] / [bold yellow]{totalPages}[/]. {spendingText}" +
+                              "[dim]Chọn bộ lọc hoặc dùng lệnh.[/]");
+        }
 
         private async Task HandleViewOrderDetailsAsync(int orderId)
         {
@@ -143,7 +147,6 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            
             var grid = new Grid();
             grid.AddColumn();
             grid.AddColumn();
@@ -153,6 +156,16 @@ namespace Project1_VTCA.UI.Customer
             grid.AddRow(new Markup("[bold]Địa chỉ nhận:[/]"), new Markup(Markup.Escape(order.ShippingAddress)));
             grid.AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)));
             grid.AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
+
+            if (order.Status == "CustomerCancelled" && !string.IsNullOrEmpty(order.CustomerCancellationReason))
+            {
+                grid.AddRow(new Markup("[bold red]Lý do bạn đã hủy:[/]"), new Markup($"[italic]{Markup.Escape(order.CustomerCancellationReason)}[/]"));
+            }
+            else if (order.Status == "RejectedByAdmin" && !string.IsNullOrEmpty(order.AdminDecisionReason))
+            {
+                grid.AddRow(new Markup("[bold red]Lý do bị từ chối:[/]"), new Markup($"[italic]{Markup.Escape(order.AdminDecisionReason)}[/]"));
+            }
+          
 
             var panel = new Panel(grid)
                 .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
@@ -180,6 +193,7 @@ namespace Project1_VTCA.UI.Customer
             AnsiConsole.Write(panel);
             AnsiConsole.Write(table);
             AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
+           
             AnsiConsole.MarkupLine("\n[dim]Nhấn phím bất kỳ để quay lại...[/]");
             Console.ReadKey();
         }
@@ -187,9 +201,9 @@ namespace Project1_VTCA.UI.Customer
         // NÂNG CẤP: Yêu cầu nhập OrderID (int) thay vì OrderCode (string)
         private async Task HandleCancelOrder()
         {
-            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn yêu cầu hủy (chỉ nhập số):");
+            var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy:");
+            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
 
-            var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/]:");
             if (string.IsNullOrWhiteSpace(reason))
             {
                 AnsiConsole.MarkupLine("[red]Lý do hủy không được để trống.[/]");
@@ -197,7 +211,7 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            if (AnsiConsole.Confirm($"Bạn có chắc muốn yêu cầu hủy đơn hàng [yellow]ID {orderId}[/]?"))
+            if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
                 var response = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
                 string color = response.IsSuccess ? "green" : "red";

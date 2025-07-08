@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Project1_VTCA.Data;
@@ -24,6 +25,11 @@ class Program
         Console.InputEncoding = System.Text.Encoding.UTF8;
 
         var builder = Host.CreateApplicationBuilder(args);
+
+       
+        builder.Logging.ClearProviders(); 
+        builder.Logging.AddConsole(); 
+        builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -56,9 +62,12 @@ class Program
         builder.Services.AddTransient<IOrderHistoryMenu, OrderHistoryMenu>();
         builder.Services.AddTransient<IAccountManagementMenu, AccountManagementMenu>();
         builder.Services.AddTransient<IAdminOrderMenu, AdminOrderMenu>();
-
+        builder.Services.AddTransient<IAdminCustomerMenu, AdminCustomerMenu>();
+        builder.Services.AddTransient<IAdminProductMenu, AdminProductMenu>();
 
         using var host = builder.Build();
+
+       
 
         await ApplyMigrations(host.Services);
 

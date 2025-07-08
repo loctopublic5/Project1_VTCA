@@ -1,4 +1,5 @@
-﻿using Project1_VTCA.Services.Interface;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Customer.Interfaces;
 using Project1_VTCA.UI.Draw;
 using Spectre.Console;
@@ -8,17 +9,15 @@ namespace Project1_VTCA.UI.Customer
 {
     public class UserMenu : IUserMenu
     {
-        private readonly ProductMenu _productMenu;
-        private readonly ICartMenu _cartMenu;
         private readonly ISessionService _sessionService;
         private readonly IAccountManagementMenu _accountMenu;
+        private readonly IServiceProvider _serviceProvider;
 
-        public UserMenu(ProductMenu productMenu, ISessionService sessionService, ICartMenu cartMenu, IAccountManagementMenu accountMenu)
+        public UserMenu(ISessionService sessionService, IAccountManagementMenu accountMenu, IServiceProvider serviceProvider)
         {
-            _productMenu = productMenu;
-            _cartMenu = cartMenu;
             _sessionService = sessionService;
-            _accountMenu = accountMenu; 
+            _accountMenu = accountMenu;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task Show()
@@ -45,10 +44,12 @@ namespace Project1_VTCA.UI.Customer
                 switch (choice)
                 {
                     case "Duyệt sản phẩm (Tất cả sản phẩm)":
-                        await _productMenu.ShowAllProductsAsync();
+                        var productMenu = _serviceProvider.GetRequiredService<ProductMenu>();
+                        await productMenu.ShowAllProductsAsync();
                         break;
                     case "Xem giỏ hàng":
-                        await _cartMenu.ShowAsync();
+                        var cartMenu = _serviceProvider.GetRequiredService<ICartMenu>();
+                        await cartMenu.ShowAsync();
                         break;
                     case "Quản lý tài khoản":
                         await _accountMenu.ShowAsync(); // GỌI MENU CON

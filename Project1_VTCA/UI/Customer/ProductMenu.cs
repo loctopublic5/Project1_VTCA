@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Customer.Interfaces;
@@ -8,6 +9,7 @@ using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,17 +22,28 @@ namespace Project1_VTCA.UI.Customer
         private readonly ISessionService _sessionService;
         private readonly ICartService _cartService;
         private readonly ICheckoutMenu _checkoutMenu;
+        private readonly IServiceProvider _serviceProvider; 
         private readonly ConsoleLayout _layout;
         private List<Category> _productCategories;
 
-        public ProductMenu(IProductService productService, IPromotionService promotionService, ISessionService sessionService, ICartService cartService, ConsoleLayout layout, ICheckoutMenu checkoutMenu)
+       
+        public ProductMenu(
+            IProductService productService,
+            IPromotionService promotionService,
+            ISessionService sessionService,
+            ICartService cartService,
+            ICheckoutMenu checkoutMenu,
+            IServiceProvider serviceProvider,
+            ConsoleLayout layout)
         {
             _productService = productService;
             _promotionService = promotionService;
             _sessionService = sessionService;
             _cartService = cartService;
             _checkoutMenu = checkoutMenu;
+            _serviceProvider = serviceProvider;
             _layout = layout;
+            _productCategories = new List<Category>();
         }
 
         public async Task HandleViewProductDetailsAsync(int productId)
@@ -126,9 +139,10 @@ namespace Project1_VTCA.UI.Customer
             var quantity = AnsiConsole.Prompt(
                 new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
                     .Validate(q => {
+                        var stock = selectedSize.QuantityInStock ?? 0;
                         if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
-                        if (q > (selectedSize.QuantityInStock ?? 0)) return ValidationResult.Error("[red]Số lượng vượt quá tồn kho.[/]");
+                        // BỎ GIỚI HẠN 5
+                        if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
                         return ValidationResult.Success();
                     }));
 
@@ -170,14 +184,16 @@ namespace Project1_VTCA.UI.Customer
             );
 
             var quantity = AnsiConsole.Prompt(
-                new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
-                    .Validate(q => {
-                        if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                        if (q > 5) return ValidationResult.Error("[red]Chỉ được mua tối đa 5 sản phẩm mỗi lần.[/]");
-                        var stock = selectedSize.QuantityInStock ?? 0;
-                        if (q > stock) return ValidationResult.Error($"[red]Số lượng tồn kho không đủ (chỉ còn {stock}).[/]");
-                        return ValidationResult.Success();
-                    }));
+                 new TextPrompt<int>($"Nhập [green]số lượng[/] cho size [yellow]{selectedSize.Size}[/]:")
+                     .ValidationErrorMessage("[red]Dữ liệu không hợp lệ![/]")
+                     .Validate(q =>
+                     {
+                         var stock = selectedSize.QuantityInStock ?? 0;
+                         if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
+                         // BỎ GIỚI HẠN 5
+                         if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
+                         return ValidationResult.Success();
+                     }));
 
             var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
             var finalPrice = discountedPrice ?? product.Price;
@@ -212,9 +228,9 @@ namespace Project1_VTCA.UI.Customer
             table.AddColumn(new TableColumn("[yellow]ID[/]").Alignment(Justify.Center));
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
-            // --- THÊM CỘT MỚI ---
             table.AddColumn(new TableColumn("[yellow]Danh mục chính[/]"));
-            table.AddColumn(new TableColumn("[yellow]Giá[/]").Alignment(Justify.Right));
+            table.AddColumn(new TableColumn("[yellow]Giá Gốc[/]").Alignment(Justify.Right));
+            table.AddColumn(new TableColumn("[yellow]Giá Mới[/]").Alignment(Justify.Right));
 
             if (!products.Any())
             {
@@ -225,22 +241,18 @@ namespace Project1_VTCA.UI.Customer
             foreach (var product in products)
             {
                 var (discountedPrice, _) = await _promotionService.CalculateDiscountedPriceAsync(product);
-                string priceDisplay = discountedPrice.HasValue
-                    ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]"
-                    : $"[green]{product.Price:N0} VNĐ[/]";
-
-                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
-
-                
                 var displayCategory = _productService.GetDisplayCategory(product);
+                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
 
                 table.AddRow(
                     new Markup(product.ProductID.ToString()),
                     new Markup(Markup.Escape(product.Name)),
                     new Markup(brand),
-                    
                     new Markup(Markup.Escape(displayCategory)),
-                    new Markup(priceDisplay)
+                    new Markup($"[dim]{product.Price:N0} VNĐ[/]"),
+                    discountedPrice.HasValue
+                        ? new Markup($"[bold green]{discountedPrice.Value:N0} VNĐ[/]")
+                        : new Markup("") // Để trống nếu không có khuyến mãi
                 );
             }
             return table;
@@ -332,7 +344,7 @@ namespace Project1_VTCA.UI.Customer
                     {
                         await HandleAddToCartFlowAsync(product);
                     }
-                    else // parts[0] == "buy"
+                    else 
                     {
                         await HandleBuyNowFlowAsync(product);
                     }
@@ -342,7 +354,7 @@ namespace Project1_VTCA.UI.Customer
                     AnsiConsole.MarkupLine("[red]Lỗi: Cú pháp lệnh không hợp lệ.[/]");
                     Console.ReadKey();
                 }
-                return true; // Quay lại vòng lặp để làm mới danh sách
+                return true; 
             }
 
             if (choice.StartsWith("id."))
@@ -376,6 +388,18 @@ namespace Project1_VTCA.UI.Customer
                     state.MinPrice = min; state.MaxPrice = max;
                     state.SortBy = "price_asc"; state.CurrentPage = 1;
                     break;
+                case "7":
+                    if (!_sessionService.IsLoggedIn)
+                    {
+                        AnsiConsole.MarkupLine("\n[red]Bạn cần đăng nhập để sử dụng chức năng giỏ hàng. Vui lòng quay lại và chọn 'Đăng nhập' hoặc 'Đăng ký'.[/]");
+                        Console.ReadKey();
+                    }
+                    else
+                    {
+                        var cartMenu = _serviceProvider.GetRequiredService<ICartMenu>();
+                        await cartMenu.ShowAsync();
+                    }
+                    break;
                 default:
                     if (choice.StartsWith("p.") && int.TryParse(choice.AsSpan(2), out int targetPage) && targetPage >= 1 && targetPage <= state.TotalPages)
                     {
@@ -401,7 +425,9 @@ namespace Project1_VTCA.UI.Customer
                 "5. Lọc theo danh mục\n" +
                 "6. Lọc theo giá\n" +
                 "0. Quay về mặc định\n\n" +
-                "[bold yellow underline]ĐIỀU HƯỚNG[/]\n" +
+                "[bold yellow underline]GIỎ HÀNG[/]\n"+
+                "7. [cyan]Xem/Quản lý Giỏ hàng[/]\n"+
+               "[bold yellow underline]ĐIỀU HƯỚNG[/]\n" +
                 "[dim]n - Trang sau\n" +
                 "p - Trang trước\n" +
                 "p.{số} - Đến trang chỉ định[/]\n" +

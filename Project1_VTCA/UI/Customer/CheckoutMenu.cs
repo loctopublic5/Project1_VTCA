@@ -1,4 +1,5 @@
-﻿using Project1_VTCA.Data;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using Project1_VTCA.UI.Customer.Interfaces;
 using Spectre.Console;
@@ -14,13 +15,15 @@ namespace Project1_VTCA.UI.Customer
         private readonly IPromotionService _promotionService;
         private readonly ISessionService _sessionService;
         private readonly IAddressService _addressService;
+        private readonly IServiceProvider _serviceProvider;
 
-        public CheckoutMenu(IOrderService orderService, IPromotionService promotionService, ISessionService sessionService, IAddressService addressService)
+        public CheckoutMenu(IOrderService orderService, IPromotionService promotionService, ISessionService sessionService, IAddressService addressService, IServiceProvider serviceProvider)
         {
             _orderService = orderService;
             _promotionService = promotionService;
             _sessionService = sessionService;
             _addressService = addressService;
+            _serviceProvider = serviceProvider;
         }
 
         // CẬP NHẬT: Trả về Task<bool>
@@ -41,9 +44,10 @@ namespace Project1_VTCA.UI.Customer
 
             AnsiConsole.Write(await CreateSummaryTable(itemsToCheckout, subTotal, shippingFee, totalPrice));
 
-            // TÍCH HỢP: Chọn địa chỉ từ danh sách thật
-            var selectedAddress = await ChooseShippingAddress();
+            var selectedAddress = await ChooseOrAddAddressAsync();
             if (selectedAddress == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return false; }
+
+            
 
             string paymentMethod = await ChoosePaymentMethod(totalPrice);
             if (paymentMethod == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thanh toán.[/]"); Console.ReadKey(); return false; }
@@ -52,6 +56,7 @@ namespace Project1_VTCA.UI.Customer
             var finalConfirmPanel = CreateFinalConfirmPanel(selectedAddress, paymentMethod, totalPrice);
             AnsiConsole.Write(finalConfirmPanel);
 
+
             if (!AnsiConsole.Confirm("\n[bold yellow]Xác nhận đặt hàng với các thông tin trên?[/]"))
             {
                 AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác đặt hàng.[/]");
@@ -59,24 +64,26 @@ namespace Project1_VTCA.UI.Customer
                 return false;
             }
 
-            // CHUẨN HÓA: Lời gọi phương thức giờ đây truyền đúng số lượng và đúng loại tham số.
+
             var response = await _orderService.CreateOrderAsync(
-            _sessionService.CurrentUser.UserID,
-            itemsToCheckout,
-            $"{selectedAddress.AddressDetail}, {selectedAddress.City}",
-            selectedAddress.ReceivePhone,
-            paymentMethod
-        );
+                _sessionService.CurrentUser.UserID,
+                itemsToCheckout, $"{selectedAddress.AddressDetail}," +
+                $" {selectedAddress.City}",
+                selectedAddress.ReceivePhone,
+                paymentMethod);
 
-            if (response.IsSuccess)
+            if (response.IsSuccess && int.TryParse(response.Message, out int newOrderId))
             {
-                // CẬP NHẬT: Trừ tiền vào số dư session ngay lập tức nếu thành công
-                if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                var newOrder = await _orderService.GetOrderByIdAsync(newOrderId, _sessionService.CurrentUser.UserID);
+                if (newOrder != null)
                 {
-                    _sessionService.CurrentUser.Balance -= totalPrice;
+                    // Trừ tiền vào session ngay sau khi có hóa đơn
+                    if (newOrder.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                    {
+                        _sessionService.CurrentUser.Balance -= newOrder.TotalPrice;
+                    }
+                    DisplaySuccessReceipt(newOrder);
                 }
-
-                DisplaySuccessReceipt(response.Message, totalPrice);
                 Console.ReadKey();
                 return true;
             }
@@ -87,31 +94,67 @@ namespace Project1_VTCA.UI.Customer
                 return false;
             }
         }
-        
 
-        // PHƯƠNG THỨC MỚI: Tích hợp AddressService
-        private async Task<Address> ChooseShippingAddress()
+
+        private async Task<Address?> ChooseOrAddAddressAsync()
         {
-            var addresses = await _addressService.GetActiveAddressesAsync(_sessionService.CurrentUser.UserID);
-            if (!addresses.Any())
+            var addressService = _serviceProvider.GetRequiredService<IAddressService>();
+            while (true)
             {
-                AnsiConsole.MarkupLine("[red]Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong mục 'Quản lý tài khoản' trước.[/]");
-                return null;
+                var addresses = await addressService.GetActiveAddressesAsync(_sessionService.CurrentUser.UserID);
+                if (!addresses.Any())
+                {
+                    if (AnsiConsole.Confirm("[yellow]Bạn chưa có địa chỉ nào. Bạn có muốn tạo một địa chỉ nhận hàng ngay bây giờ không?[/]"))
+                    {
+                        var addressMenu = _serviceProvider.GetRequiredService<IAddressMenu>();
+                        // Gọi luồng thêm địa chỉ và tự động đặt làm mặc định
+                        var newAddress = await addressMenu.HandleAddAddressFlowAsync(true);
+                        if (newAddress != null)
+                        {
+                            return newAddress; // Tự động chọn địa chỉ vừa tạo
+                        }
+                    }
+                    else
+                    {
+                        return null; // Người dùng từ chối tạo, hủy thanh toán
+                    }
+                }
+                else
+                {
+                    // Luồng chọn địa chỉ đã có không đổi
+                    var prompt = new SelectionPrompt<Address>()
+                        .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
+                        .UseConverter(addr => {
+                            var displayText = $"{addr.AddressDetail}, {addr.City} - SĐT: {addr.ReceivePhone}";
+                            return addr.IsDefault ? $"[bold yellow](Mặc định)[/] {Markup.Escape(displayText)}" : Markup.Escape(displayText);
+                        })
+                        .AddChoices(addresses);
+                    return AnsiConsole.Prompt(prompt);
+                }
             }
-
-            var prompt = new SelectionPrompt<Address>()
-                .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
-                .PageSize(7)
-                .UseConverter(addr => {
-                    var displayText = $"{addr.AddressDetail}, {addr.City} - SĐT: {addr.ReceivePhone}";
-                    return addr.IsDefault ? $"[bold yellow](Mặc định)[/] {Markup.Escape(displayText)}" : Markup.Escape(displayText);
-                })
-                .AddChoices(addresses);
-
-            return AnsiConsole.Prompt(prompt);
         }
 
-        // ... các phương thức khác giữ nguyên
+        //private async Task<Address> ChooseShippingAddress()
+        //{
+        //    var addresses = await _addressService.GetActiveAddressesAsync(_sessionService.CurrentUser.UserID);
+        //    if (!addresses.Any())
+        //    {
+        //        AnsiConsole.MarkupLine("[red]Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong mục 'Quản lý tài khoản' trước.[/]");
+        //        return null;
+        //    }
+
+        //    var prompt = new SelectionPrompt<Address>()
+        //        .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
+        //        .PageSize(7)
+        //        .UseConverter(addr => {
+        //            var displayText = $"{addr.AddressDetail}, {addr.City} - SĐT: {addr.ReceivePhone}";
+        //            return addr.IsDefault ? $"[bold yellow](Mặc định)[/] {Markup.Escape(displayText)}" : Markup.Escape(displayText);
+        //        })
+        //        .AddChoices(addresses);
+
+        //    return AnsiConsole.Prompt(prompt);
+        //}
+
         #region Other CheckoutMenu Methods
         private async Task<(decimal, int)> CalculateTotals(List<CartItem> items)
         {
@@ -206,23 +249,83 @@ namespace Project1_VTCA.UI.Customer
                 .Border(BoxBorder.Double);
         }
 
-        private void DisplaySuccessReceipt(string orderCode, decimal total)
+        private async Task DisplaySuccessReceipt(Order order)
         {
+            if (order == null)
+            {
+                AnsiConsole.MarkupLine("[red]Lỗi: Không thể hiển thị chi tiết đơn hàng.[/]");
+                Console.ReadKey();
+                return;
+            }
+
             AnsiConsole.Clear();
-            var panel = new Panel(
-                new Rows(
-                    new Markup("[green bold]Cảm ơn bạn đã mua hàng![/]"),
-                    new Markup($"Mã đơn hàng của bạn là: [yellow bold]{orderCode}[/]"),
-                    new Markup($"Tổng số tiền: [yellow bold]{total:N0} VNĐ[/]"),
-                    new Text(""),
-                    new Markup("[dim]Đơn hàng của bạn đang chờ quản trị viên xác nhận.[/]"),
-                    new Markup("[dim]Bạn có thể theo dõi trạng thái trong mục 'Quản lý tài khoản'.[/]")
-                ))
-                .Header(new PanelHeader("ĐẶT HÀNG THÀNH CÔNG").Centered())
-                .Border(BoxBorder.Double)
-                .Padding(2, 1)
+
+            // THÊM: Thông báo thành công nổi bật ở trên cùng
+            AnsiConsole.Write(
+                new FigletText("COMPLETE CHECKOUT")
+                    .Centered()
+                    .Color(Color.Green));
+
+            var grid = new Grid();
+            grid.AddColumn();
+            grid.AddColumn();
+            grid.AddRow(new Markup("[bold]Mã đơn hàng:[/]"), new Markup(Markup.Escape(order.OrderCode)));
+            grid.AddRow(new Markup("[bold]Ngày đặt:[/]"), new Markup(Markup.Escape(order.OrderDate.ToString("g"))));
+            grid.AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status));
+            grid.AddRow(new Markup("[bold]Địa chỉ nhận:[/]"), new Markup(Markup.Escape(order.ShippingAddress)));
+            grid.AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)));
+            grid.AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
+
+            var panel = new Panel(grid)
+                .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
                 .Expand();
+
+            var table = new Table().Expand().Border(TableBorder.Rounded);
+            table.Title = new TableTitle("Sản phẩm trong đơn");
+            table.AddColumn("Sản phẩm");
+            table.AddColumn("Size");
+            table.AddColumn("Số lượng");
+            table.AddColumn("Đơn giá");
+            table.AddColumn("Thành tiền");
+
+            // Giả sử order.OrderDetails đã được load
+            if (order.OrderDetails != null)
+            {
+                foreach (var detail in order.OrderDetails)
+                {
+                    table.AddRow(
+                        new Markup(Markup.Escape(detail.Product.Name)),
+                        new Markup(Markup.Escape(detail.Size.ToString())),
+                        new Markup(Markup.Escape(detail.Quantity.ToString())),
+                        new Markup($"{detail.UnitPrice:N0} VNĐ"),
+                        new Markup($"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]")
+                    );
+                }
+            }
+
             AnsiConsole.Write(panel);
+            AnsiConsole.Write(table);
+            AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
+            AnsiConsole.MarkupLine("\n[dim]Cảm ơn bạn đã mua hàng! Nhấn phím bất kỳ để quay lại...[/]");
+            Console.ReadKey();
+        }
+
+
+
+
+        private Markup FormatOrderStatus(string status)
+        {
+            return status switch
+            {
+                "PendingAdminApproval" => new Markup("[yellow]WAIT[/]"),
+                "Processing" => new Markup("[green]DONE[/]"),
+                "Completed" => new Markup("[green]DONE[/]"),
+                "RejectedByAdmin" => new Markup("[red]REJECTED[/]"),
+                "CustomerCancelled" => new Markup("[red]CANCELLED[/]"),
+                "CancellationRequested" => new Markup("[orange1]REQ_CANCEL[/]"),
+                "Cancelled" => new Markup("[red]CANCELLED[/]"),
+                _ => new Markup(Markup.Escape(status))
+            };
         }
         #endregion
     }

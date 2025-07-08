@@ -2,6 +2,7 @@
 using Project1_VTCA.Data;
 using Project1_VTCA.Services.Interface;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ namespace Project1_VTCA.Services
 {
     public class CartService : ICartService
     {
-        private const int MaxQuantityPerSize = 5;
+        
         private readonly SneakerShopDbContext _context;
 
         public CartService(SneakerShopDbContext context)
@@ -38,19 +39,17 @@ namespace Project1_VTCA.Services
                 return new ServiceResponse(false, $"Lỗi: Size mới không có sẵn hoặc không đủ hàng (Tồn kho: {newProductSize?.QuantityInStock ?? 0}).");
             }
 
+            int stock = newProductSize?.QuantityInStock ?? 0;
+
             var destinationItem = await _context.CartItems
                 .FirstOrDefaultAsync(ci => ci.UserID == userId && ci.ProductID == sourceItem.ProductID && ci.Size == newSize && ci.CartItemID != cartItemId);
 
             if (destinationItem != null) // Xung đột -> Gộp
             {
                 int mergedQuantity = sourceItem.Quantity + destinationItem.Quantity;
-                if (mergedQuantity > MaxQuantityPerSize)
+                if (mergedQuantity > stock)
                 {
-                    return new ServiceResponse(false, $"Lỗi: Không thể gộp. Tổng số lượng sau khi gộp ({mergedQuantity}) sẽ vượt quá giới hạn {MaxQuantityPerSize} cho phép.");
-                }
-                if (mergedQuantity > (newProductSize.QuantityInStock ?? 0))
-                {
-                    return new ServiceResponse(false, $"Lỗi: Không thể gộp. Tổng số lượng sau khi gộp ({mergedQuantity}) sẽ vượt quá tồn kho (còn {newProductSize.QuantityInStock ?? 0}).");
+                    return new ServiceResponse(false, $"Lỗi: Không thể gộp. Tổng số lượng sau khi gộp ({mergedQuantity}) sẽ vượt quá tồn kho (còn {stock}).");
                 }
                 destinationItem.Quantity = mergedQuantity;
                 _context.CartItems.Remove(sourceItem);
@@ -63,6 +62,7 @@ namespace Project1_VTCA.Services
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, "Cập nhật size thành công!");
         }
+
 
         // ... (Các phương thức còn lại của CartService.cs)
         #region Other CartService Methods
@@ -90,11 +90,7 @@ namespace Project1_VTCA.Services
             if (existingCartItem != null)
             {
                 int newTotalQuantity = existingCartItem.Quantity + quantity;
-                if (newTotalQuantity > MaxQuantityPerSize)
-                {
-                    int canAdd = MaxQuantityPerSize - existingCartItem.Quantity;
-                    return new ServiceResponse(false, $"Lỗi: Mỗi size sản phẩm chỉ có thể thêm tối đa {MaxQuantityPerSize} chiếc vào giỏ. Bạn đã có {existingCartItem.Quantity} chiếc trong giỏ và chỉ có thể thêm tối đa {canAdd} chiếc nữa.");
-                }
+                // BỎ GIỚI HẠN 5: Chỉ kiểm tra tồn kho
                 if (newTotalQuantity > stock)
                 {
                     return new ServiceResponse(false, $"Lỗi: Tổng số lượng trong giỏ và số lượng thêm vào vượt quá tồn kho (còn {stock}).");
@@ -103,10 +99,6 @@ namespace Project1_VTCA.Services
             }
             else
             {
-                if (quantity > MaxQuantityPerSize)
-                {
-                    return new ServiceResponse(false, $"Lỗi: Mỗi size sản phẩm chỉ có thể thêm tối đa {MaxQuantityPerSize} chiếc vào giỏ.");
-                }
                 var newCartItem = new CartItem
                 {
                     UserID = userId,
@@ -140,7 +132,7 @@ namespace Project1_VTCA.Services
 
             if (cartItem == null) return new ServiceResponse(false, "Lỗi: Không tìm thấy sản phẩm trong giỏ hàng.");
             if (newQuantity <= 0) return new ServiceResponse(false, "Lỗi: Số lượng mới phải lớn hơn 0.");
-            if (newQuantity > MaxQuantityPerSize) return new ServiceResponse(false, $"Lỗi: Số lượng mới không được vượt quá {MaxQuantityPerSize}.");
+            
 
             var stock = cartItem.Product.ProductSizes.FirstOrDefault(ps => ps.Size == cartItem.Size)?.QuantityInStock ?? 0;
             if (newQuantity > stock) return new ServiceResponse(false, $"Lỗi: Số lượng tồn kho không đủ (chỉ còn {stock}).");

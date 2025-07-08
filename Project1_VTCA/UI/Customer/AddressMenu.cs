@@ -38,7 +38,7 @@ namespace Project1_VTCA.UI.Customer
 
                 switch (choice)
                 {
-                    case "Thêm địa chỉ mới": await HandleAddAddress(); break;
+                    case "Thêm địa chỉ mới": await HandleAddAddressFlowAsync(); break;
                     case "Sửa địa chỉ": await HandleUpdateAddress(addresses); break;
                     case "Xóa địa chỉ": await HandleDeleteAddress(addresses); break;
                     case "Đặt làm mặc định": await HandleSetDefault(addresses); break;
@@ -95,7 +95,7 @@ namespace Project1_VTCA.UI.Customer
             Console.ReadKey();
         }
 
-        // ... các phương thức khác giữ nguyên
+       
         #region Other AddressMenu Methods
         private Table CreateAddressTable(List<Address> addresses)
         {
@@ -127,36 +127,27 @@ namespace Project1_VTCA.UI.Customer
             return table;
         }
 
-        private async Task HandleAddAddress()
+        public async Task<Address?> HandleAddAddressFlowAsync(bool setDefault = false)
         {
-            string addressDetail = AnsiConsole.Ask<string>("Nhập [green]Địa chỉ chi tiết[/] (số nhà, đường, phường/xã, hoặc '[red]exit[/]'):");
-            if (addressDetail.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
-
-            string city = AnsiConsole.Ask<string>("Nhập [green]Tỉnh/Thành phố[/] (hoặc '[red]exit[/]'):");
-            if (city.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
-
+            AnsiConsole.MarkupLine("\n[bold yellow]--- THÊM ĐỊA CHỈ MỚI ---[/]");
+            string addressDetail = AnsiConsole.Ask<string>("Nhập [green]Địa chỉ chi tiết[/] (số nhà, đường...):");
+            string city = AnsiConsole.Ask<string>("Nhập [green]Tỉnh/Thành phố[/]:");
             string userPhone = _sessionService.CurrentUser.PhoneNumber;
             string phone = AnsiConsole.Prompt(
-                new TextPrompt<string>($"Nhập SĐT người nhận (hoặc nhấn [yellow]Enter[/] để dùng SĐT: [underline]{userPhone}[/], hoặc '[red]exit[/]'):")
+                new TextPrompt<string>($"Nhập SĐT người nhận (hoặc nhấn [yellow]Enter[/] để dùng SĐT: [underline]{userPhone}[/]):")
                     .AllowEmpty()
             );
-
-            if (phone.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
-
-            if (string.IsNullOrEmpty(phone))
-            {
-                phone = userPhone;
-            }
+            if (string.IsNullOrEmpty(phone)) phone = userPhone;
             else
             {
                 while (!InputValidator.IsValidPhoneNumber(phone))
                 {
-                    phone = ConsoleHelper.PromptForInput("[red]SĐT không hợp lệ.[/] Nhập lại SĐT người nhận:", InputValidator.IsValidPhoneNumber, "SĐT không hợp lệ.");
-                    if (phone == null) return;
+                    phone = ConsoleHelper.PromptForInput("[red]SĐT không hợp lệ.[/] Nhập lại:", InputValidator.IsValidPhoneNumber, "SĐT không hợp lệ.");
+                    if (phone == null) return null;
                 }
             }
 
-            bool isDefault = AnsiConsole.Confirm("Đặt địa chỉ này làm mặc định?");
+            bool isDefault = setDefault || AnsiConsole.Confirm("Đặt địa chỉ này làm mặc định?");
 
             var newAddress = new Address
             {
@@ -164,13 +155,13 @@ namespace Project1_VTCA.UI.Customer
                 AddressDetail = addressDetail,
                 City = city,
                 ReceivePhone = phone,
-                IsDefault = isDefault,
-                IsActive = true
+                IsDefault = isDefault
             };
 
-            var response = await _addressService.AddAddressAsync(newAddress);
+            var (response, createdAddress) = await _addressService.AddAddressAsync(newAddress);
             AnsiConsole.MarkupLine($"[green]{Markup.Escape(response.Message)}[/]");
             Console.ReadKey();
+            return createdAddress;
         }
 
         private async Task HandleDeleteAddress(List<Address> addresses)
