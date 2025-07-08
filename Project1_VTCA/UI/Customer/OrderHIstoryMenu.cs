@@ -224,20 +224,20 @@ namespace Project1_VTCA.UI.Customer
             if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
                 // Bước 2: Gọi service để thực hiện hành động hủy trong CSDL
-                var response = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
+                var (IsSuccess, Message, NewBalance) = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
 
                 // Bước 3: Nếu CSDL cập nhật thành công, hãy cập nhật lại session
-                if (response.IsSuccess)
+                if(IsSuccess)
                 {
                     // Hoàn tiền vào session nếu cần
                     if (orderToCancel.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
-                        _sessionService.CurrentUser.Balance += orderToCancel.TotalPrice;
+                        _sessionService.CurrentUser.Balance = NewBalance;
                     }
                 }
 
-                string color = response.IsSuccess ? "green" : "red";
-                AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(response.Message)}[/]");
+                string color = IsSuccess ? "green" : "red";
+                AnsiConsole.MarkupLine($"\n[{color}]{Markup.Escape(Message)}[/]");
                 Console.ReadKey();
             }
         }

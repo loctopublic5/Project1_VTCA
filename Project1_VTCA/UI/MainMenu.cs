@@ -118,11 +118,32 @@ namespace Project1_VTCA.UI
             AnsiConsole.Write(new Rule("[bold yellow]ĐĂNG KÝ TÀI KHOẢN MỚI[/]").Centered());
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
+            string username;
+            while (true)
+            {
+                username = AnsiConsole.Ask<string>("\nNhập [green]Username[/] mong muốn (hoặc '[red]exit[/]'):").Trim();
+                if (username.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    AnsiConsole.MarkupLine("[red]Tên đăng nhập không được để trống.[/]");
+                    continue;
+                }
+
+                bool isTaken = await _authService.IsUsernameTakenAsync(username);
+                if (isTaken)
+                {
+                    AnsiConsole.MarkupLine("[red]Tên đăng nhập này đã được sử dụng. Vui lòng chọn một tên khác.[/]");
+                }
+                else
+                {
+                    break;
+                }
+            }
+
             var dto = new UserRegistrationDto();
 
-            dto.Username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] (3-20 ký tự, không dấu, không khoảng trắng):", InputValidator.IsValidUsername, "Username không hợp lệ.");
-            if (dto.Username == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
-
+            dto.Username = username;
             dto.Password = AnsiConsole.Prompt(
                 new TextPrompt<string>("Nhập [green]Password[/] (8-20 ký tự, có hoa, thường, số, ký tự đặc biệt):")
                     .Secret()

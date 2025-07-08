@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
+using Project1_VTCA.DTOs;
 using Project1_VTCA.Services.Interface;
 using System.Threading.Tasks;
 
@@ -14,23 +15,23 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
-        public async Task<ServiceResponse> DepositAsync(int userId, decimal amount)
+        public async Task<BalanceUpdateResult> DepositAsync(int userId, decimal amount)
         {
             if (amount <= 0)
             {
-                return new ServiceResponse(false, "Số tiền nạp phải lớn hơn 0.");
+                return new BalanceUpdateResult(false, "Số tiền nạp phải lớn hơn 0.", 0);
             }
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
-                return new ServiceResponse(false, "Không tìm thấy người dùng.");
+                return new BalanceUpdateResult(false, "Không tìm thấy người dùng.", 0);
             }
 
             user.Balance += amount;
             await _context.SaveChangesAsync();
 
-            return new ServiceResponse(true, $"Nạp tiền thành công! Số dư mới của bạn là {user.Balance:N0} VNĐ.");
+            return new BalanceUpdateResult(true, "Giao dịch thành công!", user.Balance);
         }
 
         public async Task<(List<User> Customers, int TotalPages)> GetCustomerStatisticsAsync(string sortBy, int pageNumber, int pageSize)
