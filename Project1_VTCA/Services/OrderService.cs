@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Project1_VTCA.Data;
+using Project1_VTCA.DTOs;
 using Project1_VTCA.Services.Interface;
 using System;
 using System.Collections.Generic;
@@ -41,8 +42,16 @@ namespace Project1_VTCA.Services
             return await query.FirstOrDefaultAsync(o => o.OrderID == orderId);
         }
 
-        public async Task<ServiceResponse> RequestCancellationAsync(int userId, int orderId, string reason)
+        public async Task<BalanceUpdateResult> RequestCancellationAsync(int userId, int orderId, string reason)
         {
+            // Lấy thông tin user và số dư hiện tại TRƯỚC khi vào transaction
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return new BalanceUpdateResult(false, "Không tìm thấy người dùng.", 0);
+            }
+            var initialBalance = user.Balance;
+
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
@@ -50,44 +59,40 @@ namespace Project1_VTCA.Services
                 try
                 {
                     var order = await _context.Orders
-                        .Include(o => o.User) // Đảm bảo nạp thông tin User
+                        .Include(o => o.User)
                         .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
 
+                    // Sử dụng initialBalance cho các trường hợp lỗi bên trong transaction
                     if (order == null)
                     {
                         await transaction.RollbackAsync();
-                        return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
+                        return new BalanceUpdateResult(false, "Không tìm thấy đơn hàng.", initialBalance);
                     }
-
                     if (order.Status != "PendingAdminApproval")
                     {
                         await transaction.RollbackAsync();
-                        return new ServiceResponse(false, "Chỉ có thể hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
+                        return new BalanceUpdateResult(false, "Chỉ có thể hủy đơn hàng đang chờ xác nhận.", initialBalance);
                     }
 
-                    // Hoàn tiền ngay lập tức (nếu có)
-                    if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                    if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)" && order.User != null)
                     {
-                        if (order.User != null)
-                        {
-                            order.User.Balance += order.TotalPrice;
-                        }
+                        order.User.Balance += order.TotalPrice;
                     }
 
                     order.Status = "CustomerCancelled";
                     order.CustomerCancellationReason = reason;
 
-                    // Logic trừ TotalSpending đã được loại bỏ chính xác từ trước
-
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    return new ServiceResponse(true, "Đã hủy đơn hàng thành công và hoàn tiền (nếu có).");
+                    // Trả về số dư MỚI NHẤT sau khi đã hoàn tiền thành công
+                    return new BalanceUpdateResult(true, "Đã hủy đơn hàng thành công và hoàn tiền (nếu có).", order.User?.Balance ?? initialBalance);
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    return new ServiceResponse(false, $"Lỗi hệ thống khi hủy đơn hàng: {ex.Message}");
+                    // Sử dụng initialBalance cho trường hợp lỗi hệ thống
+                    return new BalanceUpdateResult(false, $"Lỗi hệ thống khi hủy đơn hàng: {ex.Message}", initialBalance);
                 }
             });
         }
@@ -102,30 +107,15 @@ namespace Project1_VTCA.Services
 
         public async Task<ServiceResponse> CreateOrderAsync(int userId, List<CartItem> items, string shippingAddress, string shippingPhone, string paymentMethod)
         {
-            if (!items.Any())
-            {
-                return new ServiceResponse(false, "Không có sản phẩm nào để tạo đơn hàng.");
-            }
-
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
-                // Chỉ cần một transaction để tạo Order và OrderDetail
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // KIỂM TRA SƠ BỘ TỒN KHO
-                    foreach (var item in items)
-                    {
-                        var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == item.ProductID && ps.Size == item.Size);
-                        if (productSize == null || (productSize.QuantityInStock ?? 0) < item.Quantity)
-                        {
-                            // Không trừ kho, chỉ thông báo
-                            throw new InvalidOperationException($"Không đủ hàng cho sản phẩm {item.Product.Name} - Size {item.Size}.");
-                        }
-                    }
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user == null) throw new InvalidOperationException("Không tìm thấy người dùng.");
 
-                    var now = DateTime.Now;
                     decimal subTotal = 0;
                     int totalQuantity = 0;
                     foreach (var item in items)
@@ -138,12 +128,24 @@ namespace Project1_VTCA.Services
                     var shippingFee = CalculateShippingFee(totalQuantity);
                     var totalPrice = subTotal + shippingFee;
 
+                    // BƯỚC 1: XỬ LÝ THANH TOÁN
+                    if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
+                    {
+                        if (user.Balance < totalPrice)
+                        {
+                            return new ServiceResponse(false, "Số dư không đủ để thực hiện giao dịch.");
+                        }
+                        // Trừ tiền ngay lập tức
+                        user.Balance -= totalPrice;
+                    }
+
+                    // BƯỚC 2: TẠO ĐƠN HÀNG "ĐẶT TRƯỚC"
                     var order = new Order
                     {
                         UserID = userId,
-                        OrderCode = $"SNEAKER{now:yyyyMMddHHmmssfff}",
-                        OrderDate = now,
-                        Status = "PendingAdminApproval", // Trạng thái chờ
+                        OrderCode = $"SNEAKER{DateTime.Now:yyyyMMddHHmmssfff}",
+                        OrderDate = DateTime.Now,
+                        Status = "PendingAdminApproval",
                         TotalPrice = totalPrice,
                         ShippingAddress = shippingAddress,
                         ShippingPhone = shippingPhone,
@@ -166,7 +168,7 @@ namespace Project1_VTCA.Services
                         _context.OrderDetails.Add(orderDetail);
                     }
 
-                    // KHÔNG CÒN LOGIC TRỪ KHO Ở ĐÂY
+                    // QUAN TRỌNG: Không cập nhật TotalSpending ở bước này
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();

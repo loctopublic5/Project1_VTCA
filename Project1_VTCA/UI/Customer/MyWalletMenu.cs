@@ -80,16 +80,17 @@ namespace Project1_VTCA.UI.Customer
 
             var response = await _userService.DepositAsync(_sessionService.CurrentUser.UserID, amount);
 
-            var panel = new Panel(new Markup($"[bold {(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]"))
-                .Header("THÔNG BÁO GIAO DỊCH")
-                .Border(BoxBorder.Rounded);
+            if (response.IsSuccess)
+            {
+                _sessionService.CurrentUser.Balance = response.NewBalance;
+            }
+
+            var panel = new Panel(new Markup($"[bold {(response.IsSuccess ? "green" : "red")}]{Markup.Escape(response.Message)}[/]\nSố dư mới của bạn: [bold yellow]{response.NewBalance:N0} VNĐ[/]"))
+                .Header("THÔNG BÁO GIAO DỊCH");
+            
 
             AnsiConsole.Write(panel);
 
-            if (response.IsSuccess)
-            {
-                _sessionService.CurrentUser.Balance += amount;
-            }
 
             AnsiConsole.MarkupLine("[dim]Nhấn phím bất kỳ để tiếp tục...[/]");
             Console.ReadKey();

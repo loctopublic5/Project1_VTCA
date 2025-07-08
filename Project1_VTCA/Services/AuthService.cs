@@ -18,6 +18,10 @@ namespace Project1_VTCA.Services
             _sessionService = sessionService;
         }
 
+        public async Task<bool> IsUsernameTakenAsync(string username)
+        {
+            return await _context.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower());
+        }
         public async Task<AuthResult> LoginAsync(string username, string password)
         {
             

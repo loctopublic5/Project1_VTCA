@@ -170,21 +170,38 @@ namespace Project1_VTCA.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    // Bước 1: Thêm sản phẩm chính
                     _context.Products.Add(newProduct);
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(); // Lưu để lấy ProductID
 
+                    // Bước 2: Thêm các liên kết danh mục
                     foreach (var categoryId in categoryIds)
                     {
-                        var productCategory = new ProductCategory { ProductID = newProduct.ProductID, CategoryID = categoryId };
+                        var productCategory = new ProductCategory
+                        {
+                            ProductID = newProduct.ProductID,
+                            CategoryID = categoryId
+                        };
                         _context.ProductCategories.Add(productCategory);
                     }
                     await _context.SaveChangesAsync();
 
-                    // Chỉ tạo các bản ghi size hợp lệ với giới tính đã chọn
-                    var validSizes = GetValidSizesForGender(newProduct.GenderApplicability);
-                    foreach (var size in validSizes)
+                    // Bước 3: Tạo các bản ghi ProductSize với tồn kho = 0
+                    var availableSizes = new List<int>();
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
+                        availableSizes.AddRange(Enumerable.Range(38, 8)); // 38-45
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
+                        availableSizes.AddRange(Enumerable.Range(35, 5)); // 35-39
+                  
+
+                    foreach (var size in availableSizes.Distinct().OrderBy(s => s))
                     {
-                        var productSize = new ProductSize { ProductID = newProduct.ProductID, Size = size, QuantityInStock = 0 };
+                        var productSize = new ProductSize
+                        {
+                            ProductID = newProduct.ProductID,
+                            Size = size,
+                            QuantityInStock = 0
+                        };
                         _context.ProductSizes.Add(productSize);
                     }
 
@@ -220,16 +237,19 @@ namespace Project1_VTCA.Services
         public async Task<ServiceResponse> UpdateStockAsync(int productId, List<int> sizeIds, int newQuantity)
         {
             if (newQuantity < 0) return new ServiceResponse(false, "Số lượng mới không thể là số âm.");
+
             var sizesToUpdate = await _context.ProductSizes
                 .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
                 .ToListAsync();
+
             if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
 
             foreach (var size in sizesToUpdate)
             {
                 size.QuantityInStock = newQuantity;
             }
-           
+
+            // Logic cập nhật TotalQuantity giờ đã nằm trong Trigger của CSDL
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã cập nhật tồn kho thành công.");
         }
