@@ -225,7 +225,8 @@ namespace Project1_VTCA.UI.Admin
         {
             await _layout.RenderFormLayoutAsync("THÊM SẢN PHẨM MỚI", async () =>
             {
-                var brands = await _productService.GetCategoriesByTypeAsync("Brand");
+                var brands = (await _productService.GetCategoriesByTypeAsync("Brand"))
+                                .Where(c => c.ParentID != null).ToList();
                 var styles = (await _productService.GetCategoriesByTypeAsync("Product"))
                                 .Where(c => c.ParentID != null).ToList();
 
