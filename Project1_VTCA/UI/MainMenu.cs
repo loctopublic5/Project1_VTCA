@@ -102,7 +102,7 @@ namespace Project1_VTCA.UI
 
                 if (choice == "Quên mật khẩu")
                 {
-                    await HandleForgotPassword();
+                    await HandleForgotPasswordAsync();
                 }
                 else if (choice == "Quay về Menu chính")
                 {
@@ -176,21 +176,57 @@ namespace Project1_VTCA.UI
             Console.ReadKey();
         }
 
-        private async Task HandleForgotPassword()
+        private async Task HandleForgotPasswordAsync()
         {
             AnsiConsole.Clear();
             Banner.Show();
             AnsiConsole.Write(new Rule("[bold yellow]QUÊN MẬT KHẨU[/]").Centered());
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
-            string username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] của bạn:", u => !string.IsNullOrWhiteSpace(u), "Username không được để trống.");
-            if (username == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+            string username;
+            // Bắt đầu vòng lặp để xác thực username
+            while (true)
+            {
+                username = AnsiConsole.Ask<string>("Nhập [green]Username[/] của tài khoản bạn cần khôi phục:").Trim();
 
-            string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "Email không hợp lệ.");
-            if (email == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+                // Cung cấp lối thoát cho người dùng
+                if (username.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                {
+                    AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                    Console.ReadKey();
+                    return;
+                }
 
-            string newPassword = ConsoleHelper.PromptForInput("Nhập [green]Mật khẩu mới[/] (8-20 ký tự, có hoa, thường, số, ký tự đặc biệt):", InputValidator.IsValidPassword, "Mật khẩu không đủ mạnh.");
-            if (newPassword == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+                bool userExists = await _authService.IsUsernameTakenAsync(username);
+
+                if (userExists)
+                {
+                    break; // Username hợp lệ, thoát khỏi vòng lặp để tiếp tục
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]Lỗi: Tên đăng nhập '{Markup.Escape(username)}' không tồn tại. Vui lòng nhập lại.[/]");
+                }
+            }
+
+            // Chỉ sau khi có username hợp lệ, mới tiếp tục các bước sau
+            AnsiConsole.MarkupLine($"[green]Xác thực thành công tài khoản:[/] [bold yellow]{Markup.Escape(username)}[/]");
+
+            string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "[red]Email không hợp lệ.[/]");
+            if (email == null)
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            string newPassword = ConsoleHelper.PromptForInput("Nhập [green]Mật khẩu mới[/]:", InputValidator.IsValidPassword, "[red]Mật khẩu không đủ mạnh (phải có ít nhất 8 ký tự, bao gồm chữ hoa, thường, số và ký tự đặc biệt).[/]");
+            if (newPassword == null)
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
 
             var result = await _authService.ForgotPasswordAsync(username, email, newPassword);
             AnsiConsole.MarkupLine($"\n{result.Message}");
