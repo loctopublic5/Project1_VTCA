@@ -531,20 +531,24 @@ namespace Project1_VTCA.UI.Admin
 
         private void DisplayOrderDetails(Order order)
         {
-            var infoPanel = new Panel(
-                new Grid()
-                    .AddColumn().AddColumn()
-                    .AddRow(new Markup("[bold]Mã đơn:[/]"), new Markup(Markup.Escape(order.OrderCode)))
-                    .AddRow(new Markup("[bold]Khách hàng:[/]"), new Markup(Markup.Escape(order.User?.FullName ?? "N/A")))
-                    .AddRow(new Markup("[bold]Ngày đặt:[/]"), new Markup(Markup.Escape(order.OrderDate.ToString("g"))))
-                    .AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status))
-                    .AddRow(new Markup("[bold]Địa chỉ giao:[/]"), new Markup(Markup.Escape(order.ShippingAddress)))
-                    .AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)))
-            )
-            .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
-            .Expand();
-            AnsiConsole.Write(infoPanel);
+            // Tạo Grid để chứa thông tin chung
+            var infoGrid = new Grid()
+                .AddColumn().AddColumn()
+                .AddRow(new Markup("[bold]Mã đơn:[/]"), new Markup(Markup.Escape(order.OrderCode)))
+                .AddRow(new Markup("[bold]Khách hàng:[/]"), new Markup(Markup.Escape(order.User?.FullName ?? "N/A")))
+                .AddRow(new Markup("[bold]Ngày đặt:[/]"), new Markup(Markup.Escape(order.OrderDate.ToString("g"))))
+                .AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status))
+                .AddRow(new Markup("[bold]Địa chỉ giao:[/]"), new Markup(Markup.Escape(order.ShippingAddress)))
+                .AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)))
+                // --- BỔ SUNG: Hiển thị hình thức thanh toán ---
+                .AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
 
+            // Tạo Panel chính chứa Grid thông tin
+            var infoPanel = new Panel(infoGrid)
+                .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
+                .Expand();
+
+            // Tạo bảng chi tiết sản phẩm
             var productTable = new Table().Expand().Border(TableBorder.Rounded);
             productTable.Title = new TableTitle("Sản phẩm trong đơn");
             productTable.AddColumn("Sản phẩm");
@@ -553,19 +557,27 @@ namespace Project1_VTCA.UI.Admin
             productTable.AddColumn("Đơn giá");
             productTable.AddColumn("Thành tiền");
 
-            foreach (var detail in order.OrderDetails)
+            if (order.OrderDetails != null)
             {
-                productTable.AddRow(
-                    Markup.Escape(detail.Product.Name),
-                    Markup.Escape(detail.Size.ToString()),
-                    Markup.Escape(detail.Quantity.ToString()),
-                    $"{detail.UnitPrice:N0} VNĐ",
-                    $"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]"
-                );
+                foreach (var detail in order.OrderDetails)
+                {
+                    productTable.AddRow(
+                        new Markup(Markup.Escape(detail.Product.Name)),
+                        new Markup(Markup.Escape(detail.Size.ToString())),
+                        new Markup(Markup.Escape(detail.Quantity.ToString())),
+                        new Markup($"{detail.UnitPrice:N0} VNĐ"),
+                        new Markup($"[bold]{(detail.UnitPrice * detail.Quantity):N0} VNĐ[/]")
+                    );
+                }
             }
+
+            // Dọn dẹp và hiển thị toàn bộ giao diện
+            AnsiConsole.Clear();
+            AnsiConsole.Write(infoPanel);
             AnsiConsole.Write(productTable);
             AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
 
+            // Hiển thị các lý do hủy (nếu có)
             if (!string.IsNullOrEmpty(order.CustomerCancellationReason))
             {
                 AnsiConsole.MarkupLine($"[bold orange1]Lý do khách hủy:[/] [italic]{Markup.Escape(order.CustomerCancellationReason)}[/]");

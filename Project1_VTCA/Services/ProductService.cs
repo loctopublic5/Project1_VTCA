@@ -244,36 +244,6 @@ namespace Project1_VTCA.Services
             return new ServiceResponse(true, "Đã gỡ sản phẩm khỏi kệ thành công.");
         }
 
-        //public async Task<ServiceResponse> DecreaseStockForOrderAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
-        //{
-        //    var productSize = await transactionContext.ProductSizes
-        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
-
-        //    if (productSize == null || productSize.QuantityInStock < quantity)
-        //    {
-        //        var productName = (await transactionContext.Products.FindAsync(productId))?.Name ?? "Không rõ";
-        //        return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{productName}' - Size {size}");
-        //    }
-
-        //    productSize.QuantityInStock -= quantity;
-        //    // Logic cập nhật tổng kho đã được loại bỏ
-
-        //    return new ServiceResponse(true, "Trừ kho thành công trong context.");
-        //}
-
-        //public async Task<ServiceResponse> IncreaseStockFromCancellationAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
-        //{
-        //    var productSize = await transactionContext.ProductSizes
-        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
-
-        //    if (productSize != null)
-        //    {
-        //        productSize.QuantityInStock += quantity;
-        //    }
-            
-        //    return new ServiceResponse(true, "Hoàn kho thành công trong context.");
-        //}
-
         public async Task<List<Category>> GetCategoriesByTypeAsync(string type)
         {
             return await _context.Categories.Where(c => c.CategoryType == type).ToListAsync();

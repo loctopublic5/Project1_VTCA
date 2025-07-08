@@ -50,16 +50,18 @@ namespace Project1_VTCA.Services
                 try
                 {
                     var order = await _context.Orders
-                        .Include(o => o.User)
+                        .Include(o => o.User) // Đảm bảo nạp thông tin User
                         .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
 
                     if (order == null)
                     {
+                        await transaction.RollbackAsync();
                         return new ServiceResponse(false, "Không tìm thấy đơn hàng.");
                     }
 
                     if (order.Status != "PendingAdminApproval")
                     {
+                        await transaction.RollbackAsync();
                         return new ServiceResponse(false, "Chỉ có thể hủy các đơn hàng đang ở trạng thái 'Chờ xác nhận'.");
                     }
 
@@ -72,10 +74,10 @@ namespace Project1_VTCA.Services
                         }
                     }
 
-
-                    // Cập nhật trạng thái đơn hàng
                     order.Status = "CustomerCancelled";
                     order.CustomerCancellationReason = reason;
+
+                    // Logic trừ TotalSpending đã được loại bỏ chính xác từ trước
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
