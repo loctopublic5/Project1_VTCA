@@ -26,7 +26,7 @@ namespace Project1_VTCA.UI.Customer
             _serviceProvider = serviceProvider;
         }
 
-        // CẬP NHẬT: Trả về Task<bool>
+     
         public async Task<bool> StartCheckoutFlowAsync(List<CartItem> itemsToCheckout)
         {
             if (!itemsToCheckout.Any())
@@ -77,7 +77,7 @@ namespace Project1_VTCA.UI.Customer
                 var newOrder = await _orderService.GetOrderByIdAsync(newOrderId, _sessionService.CurrentUser.UserID);
                 if (newOrder != null)
                 {
-                    // Trừ tiền vào session ngay sau khi có hóa đơn
+            
                     if (newOrder.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         _sessionService.CurrentUser.Balance -= newOrder.TotalPrice;
@@ -107,21 +107,21 @@ namespace Project1_VTCA.UI.Customer
                     if (AnsiConsole.Confirm("[yellow]Bạn chưa có địa chỉ nào. Bạn có muốn tạo một địa chỉ nhận hàng ngay bây giờ không?[/]"))
                     {
                         var addressMenu = _serviceProvider.GetRequiredService<IAddressMenu>();
-                        // Gọi luồng thêm địa chỉ và tự động đặt làm mặc định
+                      
                         var newAddress = await addressMenu.HandleAddAddressFlowAsync(true);
                         if (newAddress != null)
                         {
-                            return newAddress; // Tự động chọn địa chỉ vừa tạo
+                            return newAddress; 
                         }
                     }
                     else
                     {
-                        return null; // Người dùng từ chối tạo, hủy thanh toán
+                        return null; 
                     }
                 }
                 else
                 {
-                    // Luồng chọn địa chỉ đã có không đổi
+      
                     var prompt = new SelectionPrompt<Address>()
                         .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
                         .UseConverter(addr => {
@@ -134,27 +134,7 @@ namespace Project1_VTCA.UI.Customer
             }
         }
 
-        //private async Task<Address> ChooseShippingAddress()
-        //{
-        //    var addresses = await _addressService.GetActiveAddressesAsync(_sessionService.CurrentUser.UserID);
-        //    if (!addresses.Any())
-        //    {
-        //        AnsiConsole.MarkupLine("[red]Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong mục 'Quản lý tài khoản' trước.[/]");
-        //        return null;
-        //    }
-
-        //    var prompt = new SelectionPrompt<Address>()
-        //        .Title("\nChọn [green]địa chỉ nhận hàng[/]:")
-        //        .PageSize(7)
-        //        .UseConverter(addr => {
-        //            var displayText = $"{addr.AddressDetail}, {addr.City} - SĐT: {addr.ReceivePhone}";
-        //            return addr.IsDefault ? $"[bold yellow](Mặc định)[/] {Markup.Escape(displayText)}" : Markup.Escape(displayText);
-        //        })
-        //        .AddChoices(addresses);
-
-        //    return AnsiConsole.Prompt(prompt);
-        //}
-
+    
         #region Other CheckoutMenu Methods
         private async Task<(decimal, int)> CalculateTotals(List<CartItem> items)
         {
@@ -260,7 +240,7 @@ namespace Project1_VTCA.UI.Customer
 
             AnsiConsole.Clear();
 
-            // THÊM: Thông báo thành công nổi bật ở trên cùng
+ 
             AnsiConsole.Write(
                 new FigletText("COMPLETE CHECKOUT")
                     .Centered()
@@ -288,7 +268,7 @@ namespace Project1_VTCA.UI.Customer
             table.AddColumn("Đơn giá");
             table.AddColumn("Thành tiền");
 
-            // Giả sử order.OrderDetails đã được load
+
             if (order.OrderDetails != null)
             {
                 foreach (var detail in order.OrderDetails)

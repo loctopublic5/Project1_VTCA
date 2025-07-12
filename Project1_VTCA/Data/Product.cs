@@ -12,7 +12,7 @@ namespace Project1_VTCA.Data
     [Table("Products")]
     public class Product
     {
-        // Constructor để khởi tạo các Collection, đảm bảo chúng không bao giờ null
+        
         public Product()
         {
             ProductCategories = new HashSet<ProductCategory>();
@@ -37,7 +37,7 @@ namespace Project1_VTCA.Data
 
         [Required]
         [MaxLength(10)]
-        public string GenderApplicability { get; set; } // Male, Female, Unisex
+        public string GenderApplicability { get; set; } 
 
         public int TotalQuantity { get; set; }
 

@@ -15,13 +15,13 @@ namespace Project1_VTCA.Data
         [Key]
         public int CategoryID { get; set; }
 
-        [Required] // Bắt buộc phải có giá trị
+        [Required] 
         [StringLength(100)]
         public string Name { get; set; }
 
         public int? ParentID { get; set; }
 
-        [ForeignKey("ParentID")] // Đánh dấu khóa ngoại
+        [ForeignKey("ParentID")] 
         public Category ParentCategory { get; set; }
 
         [Required]

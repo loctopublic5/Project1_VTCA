@@ -46,8 +46,7 @@ namespace Project1_VTCA.UI.Customer
                 }
             }
         }
-
-        // NÂNG CẤP: Giao diện Sửa địa chỉ thông minh
+        =
         private async Task HandleUpdateAddress(List<Address> addresses)
         {
             if (!addresses.Any())
@@ -70,15 +69,15 @@ namespace Project1_VTCA.UI.Customer
 
             AnsiConsole.MarkupLine("[dim]Hướng dẫn: Nhấn Enter để giữ lại thông tin cũ.[/]");
 
-            // Cập nhật địa chỉ chi tiết
+          
             var newAddressDetail = AnsiConsole.Prompt(new TextPrompt<string>($"Nhập [green]Địa chỉ chi tiết mới[/]:").AllowEmpty().DefaultValue(addressToUpdate.AddressDetail));
             addressToUpdate.AddressDetail = string.IsNullOrEmpty(newAddressDetail) ? addressToUpdate.AddressDetail : newAddressDetail;
 
-            // Cập nhật thành phố
+          
             var newCity = AnsiConsole.Prompt(new TextPrompt<string>($"Nhập [green]Tỉnh/Thành phố mới[/]:").AllowEmpty().DefaultValue(addressToUpdate.City));
             addressToUpdate.City = string.IsNullOrEmpty(newCity) ? addressToUpdate.City : newCity;
 
-            // Cập nhật SĐT
+       
             var newPhone = AnsiConsole.Prompt(new TextPrompt<string>($"Nhập [green]SĐT mới[/]:").AllowEmpty().DefaultValue(addressToUpdate.ReceivePhone));
             if (!string.IsNullOrEmpty(newPhone))
             {

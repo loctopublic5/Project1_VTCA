@@ -17,7 +17,7 @@ namespace Project1_VTCA.Data
 
         public int UserID { get; set; }
 
-        // CẬP NHẬT: Loại bỏ DataAnnotation, để C# toàn quyền kiểm soát.
+      
         public DateTime OrderDate { get; set; }
 
         [Required]

@@ -165,9 +165,6 @@ namespace Project1_VTCA.UI.Admin
         {
             return new Markup(
                 "[bold yellow underline]QUẢN LÝ KHÁCH HÀNG[/]\n\n" +
-                //"[bold]Sắp xếp theo:[/]\n" +
-                //" 1. Cao-Thấp\n" +
-                //" 2. Thấp-Cao\n\n" +
                 "[bold]Hành động:[/]\n" +
                 "[blue] cus.{id}[/] - Xem chi tiết khách hàng\n\n" +
                 " [red]0. Quay lại[/]"
@@ -185,7 +182,7 @@ namespace Project1_VTCA.UI.Admin
 
             foreach (var customer in customers)
             {
-                // Đếm các đơn hàng đã được duyệt
+             
                 int approvedOrders = customer.Orders.Count(o => o.Status == "Processing" || o.Status == "Completed");
                 table.AddRow(
                     new Markup(Markup.Escape(customer.UserID.ToString())),

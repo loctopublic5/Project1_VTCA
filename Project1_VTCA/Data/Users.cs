@@ -12,10 +12,10 @@ namespace Project1_VTCA.Data
     [Table("Users")]
     public class User
     {
-        [Key] // Đánh dấu đây là khóa chính
+        [Key] 
         public int UserID { get; set; }
 
-        [StringLength(50)] // Giới hạn độ dài chuỗi
+        [StringLength(50)] 
         public string Username { get; set; }
 
         [StringLength(100)]
@@ -33,7 +33,7 @@ namespace Project1_VTCA.Data
         [StringLength(10)]
         public string Gender { get; set; }
 
-        [Column(TypeName = "decimal(18, 2)")] // Chỉ định kiểu dữ liệu trong DB
+        [Column(TypeName = "decimal(18, 2)")] 
         public decimal Balance { get; set; }
 
         [Column(TypeName = "decimal(18, 2)")]
@@ -44,10 +44,10 @@ namespace Project1_VTCA.Data
 
         public bool IsActive { get; set; }
 
-        // Các mối quan hệ
+      
         public virtual ICollection<Address> Addresses { get; set; }
         public virtual ICollection<CartItem> CartItems { get; set; }
-        public virtual ICollection<Order> Orders { get; set; } // Đơn hàng do user này đặt
-        public virtual ICollection<Order> ApprovedOrders { get; set; } // Đơn hàng do user này (admin) duyệt
+        public virtual ICollection<Order> Orders { get; set; } 
+        public virtual ICollection<Order> ApprovedOrders { get; set; } 
     }
 }

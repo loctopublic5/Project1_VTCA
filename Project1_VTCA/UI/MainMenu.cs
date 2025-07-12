@@ -163,11 +163,11 @@ namespace Project1_VTCA.UI
             dto.PhoneNumber = ConsoleHelper.PromptForInput("Nhập [green]Số điện thoại[/]:", InputValidator.IsValidPhoneNumber, "Số điện thoại không hợp lệ (phải bắt đầu bằng 0, đủ 10 số).");
             if (dto.PhoneNumber == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            // CẬP NHẬT LỰA CHỌN GIỚI TÍNH
+            
             dto.Gender = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("Chọn [green]Giới tính[/]:")
-                    .AddChoices(new[] { "Male", "Female" }) // Chỉ còn 2 lựa chọn
+                    .AddChoices(new[] { "Male", "Female" }) 
             );
 
             var result = await _authService.RegisterAsync(dto);
@@ -184,12 +184,12 @@ namespace Project1_VTCA.UI
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
             string username;
-            // Bắt đầu vòng lặp để xác thực username
+            
             while (true)
             {
                 username = AnsiConsole.Ask<string>("Nhập [green]Username[/] của tài khoản bạn cần khôi phục:").Trim();
 
-                // Cung cấp lối thoát cho người dùng
+                
                 if (username.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
                     AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
@@ -201,7 +201,7 @@ namespace Project1_VTCA.UI
 
                 if (userExists)
                 {
-                    break; // Username hợp lệ, thoát khỏi vòng lặp để tiếp tục
+                    break; 
                 }
                 else
                 {
@@ -209,7 +209,7 @@ namespace Project1_VTCA.UI
                 }
             }
 
-            // Chỉ sau khi có username hợp lệ, mới tiếp tục các bước sau
+            
             AnsiConsole.MarkupLine($"[green]Xác thực thành công tài khoản:[/] [bold yellow]{Markup.Escape(username)}[/]");
 
             string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "[red]Email không hợp lệ.[/]");

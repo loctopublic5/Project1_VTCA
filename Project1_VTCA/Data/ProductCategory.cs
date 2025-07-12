@@ -11,7 +11,7 @@ namespace Project1_VTCA.Data
     [Table("ProductCategories")]
     public class ProductCategory
     {
-        // Khóa chính phức hợp
+    
         [Key]
         [Column(Order = 0)]
         public int ProductID { get; set; }
@@ -20,7 +20,6 @@ namespace Project1_VTCA.Data
         [Column(Order = 1)]
         public int CategoryID { get; set; }
 
-        // Navigation properties
         [ForeignKey("ProductID")]
         public Product Product { get; set; }
 

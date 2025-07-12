@@ -38,13 +38,13 @@ namespace Project1_VTCA.Services
 
         public async Task<AuthResult> RegisterAsync(UserRegistrationDto data)
         {
-            // Sửa lỗi so sánh không phân biệt hoa thường
+  
             if (await _context.Users.AnyAsync(u => u.Username.ToLower() == data.Username.ToLower()))
             {
                 return new AuthResult(false, "[red]Username này đã tồn tại.[/]");
             }
 
-            // Thêm logic kiểm tra trùng lặp email
+ 
             if (await _context.Users.AnyAsync(u => u.Email.ToLower() == data.Email.ToLower()))
             {
                 return new AuthResult(false, "[red]Email này đã được sử dụng.[/]");

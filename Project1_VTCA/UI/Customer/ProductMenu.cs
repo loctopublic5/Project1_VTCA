@@ -152,7 +152,7 @@ namespace Project1_VTCA.UI.Customer
                 new CartItem { Product = product, ProductID = product.ProductID, Size = selectedSize.Size, Quantity = quantity, UserID = _sessionService.CurrentUser.UserID }
             };
 
-            // Bắt đầu luồng thanh toán
+           
             await _checkoutMenu.StartCheckoutFlowAsync(itemToCheckout);
         }
 
@@ -191,7 +191,7 @@ namespace Project1_VTCA.UI.Customer
                      {
                          var stock = selectedSize.QuantityInStock ?? 0;
                          if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                         // BỎ GIỚI HẠN 5
+                         
                          if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
                          return ValidationResult.Success();
                      }));
@@ -230,7 +230,7 @@ namespace Project1_VTCA.UI.Customer
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
             table.AddColumn(new TableColumn("[yellow]Danh mục chính[/]"));
-            // Hai cột giá được giữ lại để trình bày thông tin một cách rõ ràng nhất
+         
             table.AddColumn(new TableColumn("[yellow]Giá Gốc[/]").Alignment(Justify.Right));
             table.AddColumn(new TableColumn("[yellow]Giá Cuối[/]").Alignment(Justify.Right));
 
@@ -252,16 +252,16 @@ namespace Project1_VTCA.UI.Customer
                 if (discountedPrice.HasValue)
                 {
                     var discountPercentage = (int)Math.Round((double)(1 - discountedPrice.Value / product.Price) * 100);
-                    // GIÁ GỐC: Bị gạch đi, làm mờ, và có tag % giảm
+                   
                     originalPriceCell = new Markup($"[strikethrough dim]{product.Price:N0} VNĐ[/] [red]-{discountPercentage}%[/]");
-                    // GIÁ CUỐI: Nổi bật với màu xanh
+                    
                     finalPriceCell = new Markup($"[bold green]{discountedPrice.Value:N0} VNĐ[/]");
                 }
                 else
                 {
-                    // GIÁ GỐC: Chỉ làm mờ đi
+                    
                     originalPriceCell = new Markup($"[dim]{product.Price:N0} VNĐ[/]");
-                    // GIÁ CUỐI: Vẫn nổi bật với màu xanh
+                    
                     finalPriceCell = new Markup($"[bold green]{product.Price:N0} VNĐ[/]");
                 }
 

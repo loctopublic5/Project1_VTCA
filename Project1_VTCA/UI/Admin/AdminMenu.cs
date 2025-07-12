@@ -55,7 +55,7 @@ namespace Project1_VTCA.UI.Admin
                         _sessionService.LogoutUser();
                         AnsiConsole.MarkupLine("\n[green]Bạn đã đăng xuất khỏi tài khoản Admin.[/]");
                         Console.ReadKey();
-                        return; // Thoát khỏi vòng lặp và quay về MainMenu
+                        return; 
                 }
             }
         }
