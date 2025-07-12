@@ -402,7 +402,7 @@ namespace Project1_VTCA.UI.Admin
                 .AddRow(new Markup("[bold]Danh mục:[/]"), new Markup(Markup.Escape(_productService.GetDisplayCategory(product))))
                 .AddRow(new Markup("[bold]Giá gốc:[/]"), new Markup($"[yellow]{product.Price:N0} VNĐ[/]"))
                 .AddRow(new Markup("[bold]Giới tính áp dụng:[/]"), new Markup(Markup.Escape(product.GenderApplicability ?? "Không xác định")))
-                .AddRow(new Markup("[bold]Trạng thái:[/]"), product.IsActive ? new Markup("[green]Đang hoạt động[/]") : new Markup("[red]Đã gỡ[/]"));
+                .AddRow(new Markup("[bold]Trạng thái:[/]"), product.IsActive ? new Markup("[green]Available on shelf[/]") : new Markup("[red]Remove from shelf[/]"));
 
             var layoutRows = new Rows(
                 infoGrid,
