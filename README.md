@@ -81,13 +81,13 @@ SQL Server (e.g., Express or Developer edition)
 Installation
 Clone the repository:
 
-git clone https://your-repository-url.git
+git clone https://github.com/loctopublic5/Project1_VTCA
 
 Configure the database connection: Open the appsettings.json file and update the DefaultConnection string with your SQL Server credentials.
 
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=YOUR_SERVER_NAME;Database=SneakerShopDB;User Id=YOUR_USERNAME;Password=YOUR_PASSWORD;TrustServerCertificate=True"
+    "DefaultConnection": "Server=LENOVO;Database=SneakerShopDB;User Id=SneakerShopActor;Password=sneaker2025;TrustServerCertificate=True"
   }
 }
 
