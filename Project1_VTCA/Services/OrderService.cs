@@ -44,7 +44,7 @@ namespace Project1_VTCA.Services
 
         public async Task<BalanceUpdateResult> RequestCancellationAsync(int userId, int orderId, string reason)
         {
-           
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -62,7 +62,7 @@ namespace Project1_VTCA.Services
                         .Include(o => o.User)
                         .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
 
-                    
+
                     if (order == null)
                     {
                         await transaction.RollbackAsync();
@@ -85,13 +85,13 @@ namespace Project1_VTCA.Services
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    
+
                     return new BalanceUpdateResult(true, "Đã hủy đơn hàng thành công và hoàn tiền (nếu có).", order.User?.Balance ?? initialBalance);
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                   
+
                     return new BalanceUpdateResult(false, $"Lỗi hệ thống khi hủy đơn hàng: {ex.Message}", initialBalance);
                 }
             });
@@ -128,18 +128,20 @@ namespace Project1_VTCA.Services
                     var shippingFee = CalculateShippingFee(totalQuantity);
                     var totalPrice = subTotal + shippingFee;
 
-                 
+
                     if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         if (user.Balance < totalPrice)
                         {
                             return new ServiceResponse(false, "Số dư không đủ để thực hiện giao dịch.");
                         }
+
                        
                         user.Balance -= totalPrice;
                     }
 
                     
+
                     var order = new Order
                     {
                         UserID = userId,
@@ -168,7 +170,7 @@ namespace Project1_VTCA.Services
                         _context.OrderDetails.Add(orderDetail);
                     }
 
-                
+
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();

@@ -230,7 +230,7 @@ namespace Project1_VTCA.UI.Customer
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
             table.AddColumn(new TableColumn("[yellow]Danh mục chính[/]"));
-         
+
             table.AddColumn(new TableColumn("[yellow]Giá Gốc[/]").Alignment(Justify.Right));
             table.AddColumn(new TableColumn("[yellow]Giá Cuối[/]").Alignment(Justify.Right));
 
@@ -252,16 +252,20 @@ namespace Project1_VTCA.UI.Customer
                 if (discountedPrice.HasValue)
                 {
                     var discountPercentage = (int)Math.Round((double)(1 - discountedPrice.Value / product.Price) * 100);
+
                    
                     originalPriceCell = new Markup($"[strikethrough dim]{product.Price:N0} VNĐ[/] [red]-{discountPercentage}%[/]");
                     
+
                     finalPriceCell = new Markup($"[bold green]{discountedPrice.Value:N0} VNĐ[/]");
                 }
                 else
                 {
+
                     
                     originalPriceCell = new Markup($"[dim]{product.Price:N0} VNĐ[/]");
                     
+
                     finalPriceCell = new Markup($"[bold green]{product.Price:N0} VNĐ[/]");
                 }
 

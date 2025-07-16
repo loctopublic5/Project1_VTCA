@@ -159,11 +159,13 @@ namespace Project1_VTCA.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+
                    
                     _context.Products.Add(newProduct);
                     await _context.SaveChangesAsync(); 
 
                    
+
                     foreach (var categoryId in categoryIds)
                     {
                         var productCategory = new ProductCategory
@@ -175,12 +177,14 @@ namespace Project1_VTCA.Services
                     }
                     await _context.SaveChangesAsync();
 
+
                     
                     var availableSizes = new List<int>();
                     if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
                         availableSizes.AddRange(Enumerable.Range(38, 8)); 
                     if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
                         availableSizes.AddRange(Enumerable.Range(35, 5)); 
+
                   
 
                     foreach (var size in availableSizes.Distinct().OrderBy(s => s))
@@ -237,6 +241,7 @@ namespace Project1_VTCA.Services
             {
                 size.QuantityInStock = newQuantity;
             }
+
 
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã cập nhật tồn kho thành công.");

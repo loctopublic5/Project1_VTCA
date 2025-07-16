@@ -528,7 +528,7 @@ namespace Project1_VTCA.UI.Admin
 
         private void DisplayOrderDetails(Order order)
         {
-   
+
             var infoGrid = new Grid()
                 .AddColumn().AddColumn()
                 .AddRow(new Markup("[bold]Mã đơn:[/]"), new Markup(Markup.Escape(order.OrderCode)))
@@ -537,15 +537,17 @@ namespace Project1_VTCA.UI.Admin
                 .AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status))
                 .AddRow(new Markup("[bold]Địa chỉ giao:[/]"), new Markup(Markup.Escape(order.ShippingAddress)))
                 .AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)))
+
      
                 .AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
 
      
+
             var infoPanel = new Panel(infoGrid)
                 .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
                 .Expand();
 
-            
+
             var productTable = new Table().Expand().Border(TableBorder.Rounded);
             productTable.Title = new TableTitle("Sản phẩm trong đơn");
             productTable.AddColumn("Sản phẩm");
@@ -568,13 +570,13 @@ namespace Project1_VTCA.UI.Admin
                 }
             }
 
-            
+
             AnsiConsole.Clear();
             AnsiConsole.Write(infoPanel);
             AnsiConsole.Write(productTable);
             AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
 
-          
+
             if (!string.IsNullOrEmpty(order.CustomerCancellationReason))
             {
                 AnsiConsole.MarkupLine($"[bold orange1]Lý do khách hủy:[/] [italic]{Markup.Escape(order.CustomerCancellationReason)}[/]");

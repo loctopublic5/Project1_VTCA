@@ -204,6 +204,7 @@ namespace Project1_VTCA.UI.Customer
             var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy (hoặc 0 để quay lại):");
             if (orderId == 0) return;
 
+
            
             var orderToCancel = await _orderService.GetOrderByIdAsync(orderId, _sessionService.CurrentUser.UserID);
             if (orderToCancel == null)
@@ -212,6 +213,7 @@ namespace Project1_VTCA.UI.Customer
                 Console.ReadKey();
                 return;
             }
+
 
             var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
             if (string.IsNullOrWhiteSpace(reason))
@@ -223,6 +225,7 @@ namespace Project1_VTCA.UI.Customer
 
             if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
+
                 
                 var (IsSuccess, Message, NewBalance) = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
 
@@ -230,6 +233,7 @@ namespace Project1_VTCA.UI.Customer
                 if(IsSuccess)
                 {
                    
+
                     if (orderToCancel.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         _sessionService.CurrentUser.Balance = NewBalance;

@@ -184,12 +184,12 @@ namespace Project1_VTCA.UI
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
             string username;
-            
+
             while (true)
             {
                 username = AnsiConsole.Ask<string>("Nhập [green]Username[/] của tài khoản bạn cần khôi phục:").Trim();
 
-                
+
                 if (username.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 {
                     AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
@@ -201,7 +201,9 @@ namespace Project1_VTCA.UI
 
                 if (userExists)
                 {
+
                     break; 
+
                 }
                 else
                 {
@@ -209,7 +211,7 @@ namespace Project1_VTCA.UI
                 }
             }
 
-            
+
             AnsiConsole.MarkupLine($"[green]Xác thực thành công tài khoản:[/] [bold yellow]{Markup.Escape(username)}[/]");
 
             string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "[red]Email không hợp lệ.[/]");

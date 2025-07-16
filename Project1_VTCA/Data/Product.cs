@@ -12,7 +12,7 @@ namespace Project1_VTCA.Data
     [Table("Products")]
     public class Product
     {
-        
+
         public Product()
         {
             ProductCategories = new HashSet<ProductCategory>();
@@ -37,6 +37,7 @@ namespace Project1_VTCA.Data
 
         [Required]
         [MaxLength(10)]
+
         public string GenderApplicability { get; set; } 
 
         public int TotalQuantity { get; set; }
