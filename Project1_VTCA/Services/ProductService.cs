@@ -130,27 +130,16 @@ namespace Project1_VTCA.Services
 
         #region ADMIN METHODS
 
-        //private async Task UpdateTotalQuantityAsync(int productId)
-        //{
-        //    var product = await _context.Products.FindAsync(productId);
-        //    if (product != null)
-        //    {
-        //        var totalStock = await _context.ProductSizes
-        //            .Where(ps => ps.ProductID == productId)
-        //            .SumAsync(ps => ps.QuantityInStock ?? 0);
-        //        product.TotalQuantity = totalStock;
-        //    }
-        //}
-
+      
 
 
         public List<int> GetValidSizesForGender(string gender)
         {
             return gender switch
             {
-                "Male" => Enumerable.Range(40, 6).ToList(),    // 40-45
-                "Female" => Enumerable.Range(35, 5).ToList(),  // 35-39
-                "Unisex" => Enumerable.Range(35, 10).ToList(), // 36-45
+                "Male" => Enumerable.Range(40, 6).ToList(),    
+                "Female" => Enumerable.Range(35, 5).ToList(),  
+                "Unisex" => Enumerable.Range(35, 10).ToList(), 
                 _ => new List<int>()
             };
         }
@@ -159,7 +148,7 @@ namespace Project1_VTCA.Services
             return await _context.Products
                 .Include(p => p.ProductCategories).ThenInclude(pc => pc.Category)
                 .Include(p => p.ProductSizes)
-                // KHÔNG có điều kiện Where(p => p.IsActive)
+     
                 .FirstOrDefaultAsync(p => p.ProductID == productId);
         }
         public async Task<Product?> AddNewProductAsync(Product newProduct, List<int> categoryIds)
@@ -170,11 +159,13 @@ namespace Project1_VTCA.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Bước 1: Thêm sản phẩm chính
-                    _context.Products.Add(newProduct);
-                    await _context.SaveChangesAsync(); // Lưu để lấy ProductID
 
-                    // Bước 2: Thêm các liên kết danh mục
+                   
+                    _context.Products.Add(newProduct);
+                    await _context.SaveChangesAsync(); 
+
+                   
+
                     foreach (var categoryId in categoryIds)
                     {
                         var productCategory = new ProductCategory
@@ -186,12 +177,14 @@ namespace Project1_VTCA.Services
                     }
                     await _context.SaveChangesAsync();
 
-                    // Bước 3: Tạo các bản ghi ProductSize với tồn kho = 0
+
+                    
                     var availableSizes = new List<int>();
                     if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
-                        availableSizes.AddRange(Enumerable.Range(38, 8)); // 38-45
+                        availableSizes.AddRange(Enumerable.Range(38, 8)); 
                     if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
-                        availableSizes.AddRange(Enumerable.Range(35, 5)); // 35-39
+                        availableSizes.AddRange(Enumerable.Range(35, 5)); 
+
                   
 
                     foreach (var size in availableSizes.Distinct().OrderBy(s => s))
@@ -249,7 +242,7 @@ namespace Project1_VTCA.Services
                 size.QuantityInStock = newQuantity;
             }
 
-            // Logic cập nhật TotalQuantity giờ đã nằm trong Trigger của CSDL
+
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã cập nhật tồn kho thành công.");
         }

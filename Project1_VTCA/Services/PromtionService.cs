@@ -64,31 +64,30 @@ namespace Project1_VTCA.Services
                                             .Select(pc => pc.CategoryID)
                                             .ToListAsync();
 
-            // Điều kiện 1: Khuyến mãi cho sản phẩm cụ thể?
+  
             if (promo.ApplicableProductId.HasValue && promo.ApplicableProductId != product.ProductID)
                 return false;
 
-            // Điều kiện 2: Khuyến mãi cho danh mục cụ thể?
             if (promo.ApplicableCategoryId.HasValue && !productCategoryIds.Contains(promo.ApplicableCategoryId.Value))
                 return false;
 
-            // Điều kiện 3: Khuyến mãi theo giới tính (LOGIC MỚI)
+  
             if (!string.IsNullOrEmpty(promo.ApplicableGender))
             {
-                // Nếu KM dành cho TẤT CẢ thì bỏ qua các kiểm tra giới tính khác
+             
                 if (promo.ApplicableGender == "All")
                 {
-                    // Không cần làm gì thêm, tiếp tục kiểm tra các điều kiện khác (nếu có)
+                   
                 }
-                // Nếu KM dành cho giới tính cụ thể (Male/Female)
+                
                 else
                 {
-                    // Người dùng phải đăng nhập VÀ có giới tính khớp với KM
+                    
                     if (user == null || user.Gender != promo.ApplicableGender)
                     {
                         return false;
                     }
-                    // Giới tính SẢN PHẨM cũng phải khớp chính xác với giới tính của KM
+                   
                     if (product.GenderApplicability != promo.ApplicableGender)
                     {
                         return false;
@@ -96,7 +95,7 @@ namespace Project1_VTCA.Services
                 }
             }
 
-            // Nếu vượt qua tất cả các kiểm tra, khuyến mãi có thể được áp dụng
+    
             return true;
         }
     }

@@ -25,8 +25,8 @@ namespace Project1_VTCA.UI.Customer
         public async Task ShowAsync()
         {
             string? currentFilter = null;
-            int pageNumber = 1; // Default page number
-            int pageSize = 10;  // Default page size
+            int pageNumber = 1; 
+            int pageSize = 10;  
 
             while (true)
             {
@@ -59,8 +59,8 @@ namespace Project1_VTCA.UI.Customer
                     case "5":
                         await HandleCancelOrder(); break;
 
-                    case "n": if (pageNumber < totalPages) pageNumber++; break; // Next page
-                    case "p": if (pageNumber > 1) pageNumber--; break; // Previous page
+                    case "n": if (pageNumber < totalPages) pageNumber++; break; 
+                    case "p": if (pageNumber > 1) pageNumber--; break; 
                     case "0": return;
                     default: break;
                 }
@@ -127,7 +127,7 @@ namespace Project1_VTCA.UI.Customer
             return table;
         }
 
-        // Modified: Remove OrderHistoryState, use pageNumber and totalPages
+    
         private Markup CreateNotificationPanel(int currentPage, int totalPages)
         {
             var totalSpending = _sessionService.CurrentUser.TotalSpending;
@@ -198,13 +198,14 @@ namespace Project1_VTCA.UI.Customer
             Console.ReadKey();
         }
 
-        // NÂNG CẤP: Yêu cầu nhập OrderID (int) thay vì OrderCode (string)
+      
         private async Task HandleCancelOrder()
         {
             var orderId = AnsiConsole.Ask<int>("Nhập [green]ID Đơn hàng[/] bạn muốn hủy (hoặc 0 để quay lại):");
             if (orderId == 0) return;
 
-            // Bước 1: Lấy thông tin đơn hàng trước để có thể truy cập TotalPrice sau này
+
+           
             var orderToCancel = await _orderService.GetOrderByIdAsync(orderId, _sessionService.CurrentUser.UserID);
             if (orderToCancel == null)
             {
@@ -212,6 +213,7 @@ namespace Project1_VTCA.UI.Customer
                 Console.ReadKey();
                 return;
             }
+
 
             var reason = AnsiConsole.Ask<string>("Nhập [green]lý do hủy[/] (ví dụ: đổi ý, đặt nhầm...):");
             if (string.IsNullOrWhiteSpace(reason))
@@ -223,13 +225,15 @@ namespace Project1_VTCA.UI.Customer
 
             if (AnsiConsole.Confirm($"[bold red]Bạn có chắc chắn muốn hủy đơn hàng ID {orderId} không?[/] Thao tác này không thể hoàn tác."))
             {
-                // Bước 2: Gọi service để thực hiện hành động hủy trong CSDL
+
+                
                 var (IsSuccess, Message, NewBalance) = await _orderService.RequestCancellationAsync(_sessionService.CurrentUser.UserID, orderId, reason);
 
-                // Bước 3: Nếu CSDL cập nhật thành công, hãy cập nhật lại session
+                
                 if(IsSuccess)
                 {
-                    // Hoàn tiền vào session nếu cần
+                   
+
                     if (orderToCancel.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         _sessionService.CurrentUser.Balance = NewBalance;

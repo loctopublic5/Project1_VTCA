@@ -40,7 +40,7 @@ namespace Project1_VTCA.Services
                 .Where(u => u.Role == "Customer")
                 .Include(u => u.Orders);
 
-            // Materialize Include before ordering to avoid type mismatch
+     
             var customersQueryBase = _context.Users
                 .Where(u => u.Role == "Customer")
                 .Include(u => u.Orders)

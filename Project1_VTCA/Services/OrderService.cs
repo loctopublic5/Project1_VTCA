@@ -32,19 +32,19 @@ namespace Project1_VTCA.Services
                 .ThenInclude(od => od.Product)
                 .AsQueryable();
 
-            // Nếu userId khác 0, đây là yêu cầu từ Customer, cần kiểm tra quyền sở hữu
+            
             if (userId != 0)
             {
                 query = query.Where(o => o.UserID == userId);
             }
 
-            // Nếu userId là 0, bỏ qua bộ lọc UserID, cho phép Admin lấy bất kỳ đơn hàng nào
+            
             return await query.FirstOrDefaultAsync(o => o.OrderID == orderId);
         }
 
         public async Task<BalanceUpdateResult> RequestCancellationAsync(int userId, int orderId, string reason)
         {
-            // Lấy thông tin user và số dư hiện tại TRƯỚC khi vào transaction
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -62,7 +62,7 @@ namespace Project1_VTCA.Services
                         .Include(o => o.User)
                         .FirstOrDefaultAsync(o => o.OrderID == orderId && o.UserID == userId);
 
-                    // Sử dụng initialBalance cho các trường hợp lỗi bên trong transaction
+
                     if (order == null)
                     {
                         await transaction.RollbackAsync();
@@ -85,13 +85,13 @@ namespace Project1_VTCA.Services
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    // Trả về số dư MỚI NHẤT sau khi đã hoàn tiền thành công
+
                     return new BalanceUpdateResult(true, "Đã hủy đơn hàng thành công và hoàn tiền (nếu có).", order.User?.Balance ?? initialBalance);
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    // Sử dụng initialBalance cho trường hợp lỗi hệ thống
+
                     return new BalanceUpdateResult(false, $"Lỗi hệ thống khi hủy đơn hàng: {ex.Message}", initialBalance);
                 }
             });
@@ -128,18 +128,20 @@ namespace Project1_VTCA.Services
                     var shippingFee = CalculateShippingFee(totalQuantity);
                     var totalPrice = subTotal + shippingFee;
 
-                    // BƯỚC 1: XỬ LÝ THANH TOÁN
+
                     if (paymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         if (user.Balance < totalPrice)
                         {
                             return new ServiceResponse(false, "Số dư không đủ để thực hiện giao dịch.");
                         }
-                        // Trừ tiền ngay lập tức
+
+                       
                         user.Balance -= totalPrice;
                     }
 
-                    // BƯỚC 2: TẠO ĐƠN HÀNG "ĐẶT TRƯỚC"
+                    
+
                     var order = new Order
                     {
                         UserID = userId,
@@ -168,7 +170,7 @@ namespace Project1_VTCA.Services
                         _context.OrderDetails.Add(orderDetail);
                     }
 
-                    // QUAN TRỌNG: Không cập nhật TotalSpending ở bước này
+
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -183,7 +185,7 @@ namespace Project1_VTCA.Services
             });
         }
 
-        // TÁI CẤU TRÚC: ConfirmOrderAsync giờ là nơi thực hiện nghiệp vụ chính
+        
         public async Task<ServiceResponse> ConfirmOrderAsync(int orderId, int adminId)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -200,7 +202,7 @@ namespace Project1_VTCA.Services
                     if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
                     if (order.Status != "PendingAdminApproval") return new ServiceResponse(false, "Đơn hàng đã được xử lý trước đó.");
 
-                    // ... (kiểm tra tồn kho lần cuối không đổi)
+        
                     foreach (var detail in order.OrderDetails)
                     {
                         var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
@@ -210,19 +212,18 @@ namespace Project1_VTCA.Services
                         }
                     }
 
-                    // Tiến hành xử lý
+                 
                     foreach (var detail in order.OrderDetails)
                     {
-                        // Trừ kho chi tiết
+
                         var productSize = await _context.ProductSizes.FirstAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);
                         productSize.QuantityInStock -= detail.Quantity;
 
-                        // SỬA LỖI: Cập nhật tổng kho của sản phẩm ngay trong transaction
+                 
                         var product = await _context.Products.FirstAsync(p => p.ProductID == detail.ProductID);
                         product.TotalQuantity -= detail.Quantity;
                     }
 
-                    // Cập nhật trạng thái và thông tin khác
                     order.Status = "Processing";
                     order.ApprovedByAdminID = adminId;
                     decimal subTotal = order.OrderDetails.Sum(od => od.UnitPrice * od.Quantity);
@@ -250,13 +251,13 @@ namespace Project1_VTCA.Services
 
             if (!string.IsNullOrEmpty(statusFilter))
             {
-                // Nếu filter chứa dấu '|', tách chuỗi và lọc với nhiều trạng thái
+        
                 if (statusFilter.Contains('|'))
                 {
                     var statuses = statusFilter.Split('|', StringSplitOptions.RemoveEmptyEntries);
                     query = query.Where(o => statuses.Contains(o.Status));
                 }
-                else // Ngược lại, lọc như bình thường
+                else 
                 {
                     query = query.Where(o => o.Status == statusFilter);
                 }
@@ -526,7 +527,6 @@ namespace Project1_VTCA.Services
                 }
             }
 
-            // Tính tổng số lượng trước khi phân trang
             var totalOrders = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalOrders / (double)pageSize);
 
@@ -535,7 +535,6 @@ namespace Project1_VTCA.Services
                 .Take(pageSize)
                 .ToListAsync();
 
-            // Trả về cả 3 giá trị
             return (orders, totalPages, totalOrders);
         }
 
@@ -553,7 +552,7 @@ namespace Project1_VTCA.Services
                 {
                     order.Status = "Processing";
 
-                    // Cập nhật TotalSpending cho khách hàng
+
                     decimal subTotal = await _context.OrderDetails
                         .Where(od => od.OrderID == orderId)
                         .SumAsync(od => od.UnitPrice * od.Quantity);
@@ -595,7 +594,7 @@ namespace Project1_VTCA.Services
 
                     if (order == null) throw new InvalidOperationException("Không tìm thấy đơn hàng.");
 
-                    // 1. Cập nhật trạng thái đơn hàng
+   
                     order.Status = finalStatus;
                     order.ApprovedByAdminID = adminId;
                     if (!string.IsNullOrEmpty(adminReason))
@@ -603,13 +602,12 @@ namespace Project1_VTCA.Services
                         order.AdminDecisionReason = adminReason;
                     }
 
-                    // 2. Hoàn tiền nếu cần
                     if (order.PaymentMethod == "Thanh toán ngay (trừ vào số dư)")
                     {
                         order.User.Balance += order.TotalPrice;
                     }
 
-                    // 3. Hoàn trả tồn kho
+         
                     foreach (var detail in order.OrderDetails)
                     {
                         var productSize = await _context.ProductSizes.FirstOrDefaultAsync(ps => ps.ProductID == detail.ProductID && ps.Size == detail.Size);

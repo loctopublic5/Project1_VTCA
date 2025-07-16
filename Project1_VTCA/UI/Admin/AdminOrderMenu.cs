@@ -32,8 +32,8 @@ namespace Project1_VTCA.UI.Admin
             public int CurrentPage { get; set; } = 1;
             public int PageSize { get; set; } = 10;
             public int TotalPages { get; set; }
-            public int TotalOrdersInFilter { get; set; } // Lưu tổng số đơn hàng của bộ lọc
-            public string? StatusFilter { get; set; } = "PendingAdminApproval"; // Mặc định là bộ lọc quan trọng nhất
+            public int TotalOrdersInFilter { get; set; } 
+            public string? StatusFilter { get; set; } = "PendingAdminApproval";
         }
         public async Task ShowAsync()
         {
@@ -42,7 +42,7 @@ namespace Project1_VTCA.UI.Admin
                var state = new AdminOrderState();
                 var (orders, totalPages, totalCount) = await _orderService.GetOrdersForAdminAsync(state.StatusFilter, state.CurrentPage, state.PageSize);
                 state.TotalPages = totalPages;
-                state.TotalOrdersInFilter = totalCount; // Cập nhật trạng thái
+                state.TotalOrdersInFilter = totalCount; 
 
                 if (state.CurrentPage > state.TotalPages && state.TotalPages > 0)
                 {
@@ -275,12 +275,12 @@ namespace Project1_VTCA.UI.Admin
                     continue;
                 }
 
-                // ĐIỂM DỪNG AN TOÀN
+         
                 if (AnsiConsole.Confirm($"\n[yellow]Bạn có chắc chắn muốn xác nhận [bold]{finalSelection.Count}[/] đơn hàng đã chọn không?[/]"))
                 {
                     var orderIds = finalSelection.Select(o => o.OrderID).ToList();
                     var adminId = _sessionService.CurrentUser.UserID;
-                    // Sử dụng lại phương thức xử lý từng phần đã có để có báo cáo chi tiết
+                  
                     await ProcessOrdersIndividuallyAndReport(finalSelection, adminId);
                 }
                 else
@@ -288,7 +288,6 @@ namespace Project1_VTCA.UI.Admin
                     AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
                 }
 
-                // VÒNG LẶP TIẾP TỤC XỬ LÝ
                 var (remainingOrders, _, _) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, 1);
                 if (remainingOrders.Any())
                 {
@@ -306,7 +305,7 @@ namespace Project1_VTCA.UI.Admin
             }
         }
 
-        #endregion // xác nhận đơn hàng
+        #endregion 
 
         #region huỷ đơn hàng phía admin
         private async Task HandleBulkRejectFlowAsync()
@@ -323,7 +322,6 @@ namespace Project1_VTCA.UI.Admin
                     break;
                 }
 
-                // TỐI ƯU HÓA: Đi thẳng vào việc chọn đơn hàng
                 var prompt = CreateMultiSelectPrompt(batch, "hủy");
                 var selectedItems = AnsiConsole.Prompt(prompt);
                 var finalSelection = ProcessSelection(selectedItems, batch);
@@ -341,7 +339,7 @@ namespace Project1_VTCA.UI.Admin
                     continue;
                 }
 
-                // ĐIỂM DỪNG AN TOÀN CUỐI CÙNG
+                
                 if (AnsiConsole.Confirm($"\n[yellow]Bạn có chắc chắn muốn hủy [bold]{finalSelection.Count}[/] đơn hàng với lý do \"[orange1]{Markup.Escape(reason)}[/]\" không?[/]"))
                 {
                     var orderIds = finalSelection.Select(o => o.OrderID).ToList();
@@ -355,7 +353,6 @@ namespace Project1_VTCA.UI.Admin
                     AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
                 }
 
-                // VÒNG LẶP TIẾP TỤC XỬ LÝ
                 var (remainingOrders, _, _) = await _orderService.GetOrdersForAdminAsync("PendingAdminApproval", 1, 1);
                 if (remainingOrders.Any())
                 {
@@ -486,7 +483,7 @@ namespace Project1_VTCA.UI.Admin
 
 
 
-        // Phương thức tạo bảng chi tiết để hiển thị ở View Chính
+
         private Table CreateDetailedOrderTable(List<Order> batch)
         {
             var table = new Table().Expand().Border(TableBorder.Rounded);
@@ -531,7 +528,7 @@ namespace Project1_VTCA.UI.Admin
 
         private void DisplayOrderDetails(Order order)
         {
-            // Tạo Grid để chứa thông tin chung
+
             var infoGrid = new Grid()
                 .AddColumn().AddColumn()
                 .AddRow(new Markup("[bold]Mã đơn:[/]"), new Markup(Markup.Escape(order.OrderCode)))
@@ -540,15 +537,17 @@ namespace Project1_VTCA.UI.Admin
                 .AddRow(new Markup("[bold]Trạng thái:[/]"), FormatOrderStatus(order.Status))
                 .AddRow(new Markup("[bold]Địa chỉ giao:[/]"), new Markup(Markup.Escape(order.ShippingAddress)))
                 .AddRow(new Markup("[bold]SĐT Nhận:[/]"), new Markup(Markup.Escape(order.ShippingPhone)))
-                // --- BỔ SUNG: Hiển thị hình thức thanh toán ---
+
+     
                 .AddRow(new Markup("[bold]Thanh toán:[/]"), new Markup(Markup.Escape(order.PaymentMethod ?? "N/A")));
 
-            // Tạo Panel chính chứa Grid thông tin
+     
+
             var infoPanel = new Panel(infoGrid)
                 .Header($"CHI TIẾT ĐƠN HÀNG - ID: {order.OrderID}")
                 .Expand();
 
-            // Tạo bảng chi tiết sản phẩm
+
             var productTable = new Table().Expand().Border(TableBorder.Rounded);
             productTable.Title = new TableTitle("Sản phẩm trong đơn");
             productTable.AddColumn("Sản phẩm");
@@ -571,13 +570,13 @@ namespace Project1_VTCA.UI.Admin
                 }
             }
 
-            // Dọn dẹp và hiển thị toàn bộ giao diện
+
             AnsiConsole.Clear();
             AnsiConsole.Write(infoPanel);
             AnsiConsole.Write(productTable);
             AnsiConsole.MarkupLine($"\n[bold yellow]TỔNG TIỀN THANH TOÁN: {order.TotalPrice:N0} VNĐ[/]");
 
-            // Hiển thị các lý do hủy (nếu có)
+
             if (!string.IsNullOrEmpty(order.CustomerCancellationReason))
             {
                 AnsiConsole.MarkupLine($"[bold orange1]Lý do khách hủy:[/] [italic]{Markup.Escape(order.CustomerCancellationReason)}[/]");

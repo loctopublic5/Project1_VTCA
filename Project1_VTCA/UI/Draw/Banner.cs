@@ -6,14 +6,14 @@ namespace Project1_VTCA.UI.Draw
     {
         public static void Show()
         {
-            // Sử dụng FigletText với font "3-D" để tạo hiệu ứng nổi khối
+            
             var figlet = new FigletText("SNEAKER SHOP")
                 .Centered()
-                .Color(Color.Orange1); // Giữ màu cam đặc trưng
+                .Color(Color.Orange1); 
 
             AnsiConsole.Write(figlet);
 
-            // Thêm một đường kẻ với màu sắc khác để tạo điểm nhấn
+           
             AnsiConsole.Write(new Rule().Centered().RuleStyle("deepskyblue2"));
         }
     }
