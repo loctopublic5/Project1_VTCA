@@ -28,14 +28,14 @@ namespace Project1_VTCA.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Cấu hình khóa chính cho các bảng liên kết nhiều-nhiều
+            
             modelBuilder.Entity<ProductCategory>()
                 .HasKey(pc => new { pc.ProductID, pc.CategoryID });
 
             modelBuilder.Entity<ProductSize>()
                 .HasKey(ps => new { ps.ProductID, ps.Size });
 
-            // Cấu hình mối quan hệ
+           
             modelBuilder.Entity<ProductCategory>()
                 .HasOne(pc => pc.Product)
                 .WithMany(p => p.ProductCategories)
@@ -46,36 +46,32 @@ namespace Project1_VTCA.Data
                 .WithMany(c => c.ProductCategories)
                 .HasForeignKey(pc => pc.CategoryID);
 
-            // Cấu hình cho Order
+           
             modelBuilder.Entity<Order>(entity =>
             {
-                // Giữ lại cấu hình index
+               
                 entity.HasIndex(o => o.OrderCode).IsUnique();
 
-                // Cấu hình mối quan hệ 1: Một Order được đặt bởi một User (khách hàng)
-                // User này có thể có nhiều Order (ICollection<Order> Orders)
+             
                 entity.HasOne(order => order.User)
-                      .WithMany(user => user.Orders) // Liên kết với thuộc tính 'Orders' trong lớp User
-                      .HasForeignKey(order => order.UserID) // Sử dụng khóa ngoại UserID
-                      .OnDelete(DeleteBehavior.Restrict); // Ngăn không cho xóa User nếu họ có đơn hàng
+                      .WithMany(user => user.Orders) 
+                      .HasForeignKey(order => order.UserID) 
+                      .OnDelete(DeleteBehavior.Restrict); 
 
-                // Cấu hình mối quan hệ 2: Một Order được duyệt bởi một User (admin)
-                // User này có thể duyệt nhiều Order (ICollection<Order> ApprovedOrders)
+               
                 entity.HasOne(order => order.ApprovedByAdmin)
-                      .WithMany(user => user.ApprovedOrders) // Liên kết với thuộc tính 'ApprovedOrders' trong lớp User
-                      .HasForeignKey(order => order.ApprovedByAdminID) // Sử dụng khóa ngoại ApprovedByAdminID
-                      .OnDelete(DeleteBehavior.Restrict); // Ngăn không cho xóa Admin nếu họ đã duyệt đơn hàng
+                      .WithMany(user => user.ApprovedOrders) 
+                      .HasForeignKey(order => order.ApprovedByAdminID) 
+                      .OnDelete(DeleteBehavior.Restrict); 
             });
 
-            // SỬA LỖI: Thêm cấu hình HasTrigger cho bảng ProductSizes
+          
             modelBuilder.Entity<ProductSize>(entity =>
             {
-                // Giữ lại cấu hình khóa chính của bạn
+                
                 entity.HasKey(ps => new { ps.ProductID, ps.Size });
 
-                // **THÊM CẤU HÌNH NÀY VÀO:**
-                // Thông báo cho EF Core rằng bảng này có một trigger,
-                // để nó quay lại sử dụng cơ chế SaveChanges cũ hơn và không gây xung đột.
+               
                 entity.ToTable(tb => tb.HasTrigger("TRG_ProductSizes_UpdateTotalQuantity"));
             });
 
@@ -471,25 +467,6 @@ namespace Project1_VTCA.Data
 
             #endregion
 
-            //SEED tk Admin
-
-            //#region Seed Admin User
-            //modelBuilder.Entity<User>().HasData(
-            //    new User
-            //    {
-            //        UserID = 1,
-            //        Username = "admin",
-            //        FullName = "Admin Shop",
-            //        // ĐÃ CẬP NHẬT HASH MỚI CỦA "Snss.2025"
-            //        PasswordHash = "03a3b022b6424cb8928545869429433158c3f443a53942468f731154563a5682",
-            //        PhoneNumber = "0987654321",
-            //        Email = "admin@shop.com",
-            //        Gender = "Unisex", // Cập nhật giới tính
-            //        Role = "Admin",
-            //        IsActive = true
-            //    }
-            //);
-            //#endregion
 
             //SEED Promotion
             #region Seed Promotions
@@ -499,7 +476,7 @@ namespace Project1_VTCA.Data
                     PromotionID = 1,
                     Code = "FORHER15",
                     DiscountPercentage = 15.00m,
-                    ApplicableGender = "Female", // Chỉ áp dụng cho sản phẩm có GenderApplicability = "Female"
+                    ApplicableGender = "Female", 
                     ExpiryDate = new DateTime(2030, 12, 31),
                     IsActive = true
                 },
@@ -508,20 +485,20 @@ namespace Project1_VTCA.Data
                     PromotionID = 2,
                     Code = "FORHIM15",
                     DiscountPercentage = 15.00m,
-                    ApplicableGender = "Male", // Chỉ áp dụng cho sản phẩm có GenderApplicability = "Male"
+                    ApplicableGender = "Male", 
                     ExpiryDate = new DateTime(2030, 12, 31),
                     IsActive = true
                 });
-            // Dán vào cuối phương thức OnModelCreating, trong vùng #region Seed Promotions
+            
 
-            // Lấy ID của các danh mục đã được seed trước đó
+          
             const int CatID_RunningTech = 5;
             const int CatID_LocalBrand = 7;
             const int CatID_Chunky = 6;
             const int CatID_Lifestyle = 3;
             const int CatID_Retro = 4;
 
-            // --- Thêm các mã khuyến mãi mới theo danh mục và giới tính ---
+         
             modelBuilder.Entity<Promotion>().HasData(
                 new Promotion
                 {

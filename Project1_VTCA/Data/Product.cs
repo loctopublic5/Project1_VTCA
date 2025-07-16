@@ -12,30 +12,39 @@ namespace Project1_VTCA.Data
     [Table("Products")]
     public class Product
     {
+        
+        public Product()
+        {
+            ProductCategories = new HashSet<ProductCategory>();
+            ProductSizes = new HashSet<ProductSize>();
+            OrderDetails = new HashSet<OrderDetail>();
+        }
+
         [Key]
         public int ProductID { get; set; }
 
-        [StringLength(100)]
+        [Required]
+        [MaxLength(200)]
         public string Name { get; set; }
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
+        [Required]
         [Column(TypeName = "decimal(18, 2)")]
         public decimal Price { get; set; }
 
-        [StringLength(10)]
-        public string GenderApplicability { get; set; }
+        public bool IsActive { get; set; } = true;
 
-        //// Báo cho EF biết giá trị này được tính bởi DB (qua trigger)
-        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        [Required]
+        [MaxLength(10)]
+        public string GenderApplicability { get; set; } 
+
         public int TotalQuantity { get; set; }
 
-        public bool IsActive { get; set; }
-
-        // ... các collection khác giữ nguyên
-        public ICollection<ProductCategory> ProductCategories { get; set; }
-        public ICollection<ProductSize> ProductSizes { get; set; }
+        // Navigation Properties
+        public virtual ICollection<ProductCategory> ProductCategories { get; set; }
+        public virtual ICollection<ProductSize> ProductSizes { get; set; }
+        public virtual ICollection<OrderDetail> OrderDetails { get; set; }
         public ICollection<CartItem> CartItems { get; set; }
-        public ICollection<OrderDetail> OrderDetails { get; set; }
     }
 }

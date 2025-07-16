@@ -19,7 +19,7 @@ namespace Project1_VTCA.Services
             _context = context;
         }
 
-        // ... (Các phương thức khác như AddToCartAsync, UpdateCartItemQuantityAsync cũng được sửa tương tự) ...
+     
 
         public async Task<ServiceResponse> UpdateCartItemSizeAsync(int userId, int cartItemId, int newSize)
         {
@@ -44,7 +44,7 @@ namespace Project1_VTCA.Services
             var destinationItem = await _context.CartItems
                 .FirstOrDefaultAsync(ci => ci.UserID == userId && ci.ProductID == sourceItem.ProductID && ci.Size == newSize && ci.CartItemID != cartItemId);
 
-            if (destinationItem != null) // Xung đột -> Gộp
+            if (destinationItem != null) 
             {
                 int mergedQuantity = sourceItem.Quantity + destinationItem.Quantity;
                 if (mergedQuantity > stock)
@@ -54,7 +54,7 @@ namespace Project1_VTCA.Services
                 destinationItem.Quantity = mergedQuantity;
                 _context.CartItems.Remove(sourceItem);
             }
-            else // Không xung đột -> Chỉ cập nhật
+            else
             {
                 sourceItem.Size = newSize;
             }
@@ -64,7 +64,7 @@ namespace Project1_VTCA.Services
         }
 
 
-        // ... (Các phương thức còn lại của CartService.cs)
+    
         #region Other CartService Methods
         public async Task<ServiceResponse> AddToCartAsync(int userId, int productId, int size, int quantity)
         {
@@ -90,7 +90,7 @@ namespace Project1_VTCA.Services
             if (existingCartItem != null)
             {
                 int newTotalQuantity = existingCartItem.Quantity + quantity;
-                // BỎ GIỚI HẠN 5: Chỉ kiểm tra tồn kho
+                
                 if (newTotalQuantity > stock)
                 {
                     return new ServiceResponse(false, $"Lỗi: Tổng số lượng trong giỏ và số lượng thêm vào vượt quá tồn kho (còn {stock}).");

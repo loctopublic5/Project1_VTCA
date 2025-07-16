@@ -52,7 +52,7 @@ namespace Project1_VTCA.UI.Customer
                         await cartMenu.ShowAsync();
                         break;
                     case "Quản lý tài khoản":
-                        await _accountMenu.ShowAsync(); // GỌI MENU CON
+                        await _accountMenu.ShowAsync();
                         break;
                     case "[red]Đăng xuất[/]":
                         _sessionService.LogoutUser();

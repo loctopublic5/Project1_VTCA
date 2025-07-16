@@ -102,7 +102,7 @@ namespace Project1_VTCA.UI
 
                 if (choice == "Quên mật khẩu")
                 {
-                    await HandleForgotPassword();
+                    await HandleForgotPasswordAsync();
                 }
                 else if (choice == "Quay về Menu chính")
                 {
@@ -118,11 +118,32 @@ namespace Project1_VTCA.UI
             AnsiConsole.Write(new Rule("[bold yellow]ĐĂNG KÝ TÀI KHOẢN MỚI[/]").Centered());
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
+            string username;
+            while (true)
+            {
+                username = AnsiConsole.Ask<string>("\nNhập [green]Username[/] mong muốn (hoặc '[red]exit[/]'):").Trim();
+                if (username.Equals("exit", StringComparison.OrdinalIgnoreCase)) return;
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    AnsiConsole.MarkupLine("[red]Tên đăng nhập không được để trống.[/]");
+                    continue;
+                }
+
+                bool isTaken = await _authService.IsUsernameTakenAsync(username);
+                if (isTaken)
+                {
+                    AnsiConsole.MarkupLine("[red]Tên đăng nhập này đã được sử dụng. Vui lòng chọn một tên khác.[/]");
+                }
+                else
+                {
+                    break;
+                }
+            }
+
             var dto = new UserRegistrationDto();
 
-            dto.Username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] (3-20 ký tự, không dấu, không khoảng trắng):", InputValidator.IsValidUsername, "Username không hợp lệ.");
-            if (dto.Username == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
-
+            dto.Username = username;
             dto.Password = AnsiConsole.Prompt(
                 new TextPrompt<string>("Nhập [green]Password[/] (8-20 ký tự, có hoa, thường, số, ký tự đặc biệt):")
                     .Secret()
@@ -142,11 +163,11 @@ namespace Project1_VTCA.UI
             dto.PhoneNumber = ConsoleHelper.PromptForInput("Nhập [green]Số điện thoại[/]:", InputValidator.IsValidPhoneNumber, "Số điện thoại không hợp lệ (phải bắt đầu bằng 0, đủ 10 số).");
             if (dto.PhoneNumber == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy đăng ký.[/]"); Console.ReadKey(); return; }
 
-            // CẬP NHẬT LỰA CHỌN GIỚI TÍNH
+            
             dto.Gender = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("Chọn [green]Giới tính[/]:")
-                    .AddChoices(new[] { "Male", "Female" }) // Chỉ còn 2 lựa chọn
+                    .AddChoices(new[] { "Male", "Female" }) 
             );
 
             var result = await _authService.RegisterAsync(dto);
@@ -155,21 +176,57 @@ namespace Project1_VTCA.UI
             Console.ReadKey();
         }
 
-        private async Task HandleForgotPassword()
+        private async Task HandleForgotPasswordAsync()
         {
             AnsiConsole.Clear();
             Banner.Show();
             AnsiConsole.Write(new Rule("[bold yellow]QUÊN MẬT KHẨU[/]").Centered());
             AnsiConsole.MarkupLine("[dim](Nhập 'exit' bất cứ lúc nào để hủy bỏ)[/]\n");
 
-            string username = ConsoleHelper.PromptForInput("Nhập [green]Username[/] của bạn:", u => !string.IsNullOrWhiteSpace(u), "Username không được để trống.");
-            if (username == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+            string username;
+            
+            while (true)
+            {
+                username = AnsiConsole.Ask<string>("Nhập [green]Username[/] của tài khoản bạn cần khôi phục:").Trim();
 
-            string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "Email không hợp lệ.");
-            if (email == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+                
+                if (username.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                {
+                    AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                    Console.ReadKey();
+                    return;
+                }
 
-            string newPassword = ConsoleHelper.PromptForInput("Nhập [green]Mật khẩu mới[/] (8-20 ký tự, có hoa, thường, số, ký tự đặc biệt):", InputValidator.IsValidPassword, "Mật khẩu không đủ mạnh.");
-            if (newPassword == null) { AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]"); Console.ReadKey(); return; }
+                bool userExists = await _authService.IsUsernameTakenAsync(username);
+
+                if (userExists)
+                {
+                    break; 
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]Lỗi: Tên đăng nhập '{Markup.Escape(username)}' không tồn tại. Vui lòng nhập lại.[/]");
+                }
+            }
+
+            
+            AnsiConsole.MarkupLine($"[green]Xác thực thành công tài khoản:[/] [bold yellow]{Markup.Escape(username)}[/]");
+
+            string email = ConsoleHelper.PromptForInput("Nhập [green]Email[/] đã đăng ký để xác thực:", InputValidator.IsValidEmail, "[red]Email không hợp lệ.[/]");
+            if (email == null)
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
+
+            string newPassword = ConsoleHelper.PromptForInput("Nhập [green]Mật khẩu mới[/]:", InputValidator.IsValidPassword, "[red]Mật khẩu không đủ mạnh (phải có ít nhất 8 ký tự, bao gồm chữ hoa, thường, số và ký tự đặc biệt).[/]");
+            if (newPassword == null)
+            {
+                AnsiConsole.MarkupLine("[yellow]Đã hủy thao tác.[/]");
+                Console.ReadKey();
+                return;
+            }
 
             var result = await _authService.ForgotPasswordAsync(username, email, newPassword);
             AnsiConsole.MarkupLine($"\n{result.Message}");

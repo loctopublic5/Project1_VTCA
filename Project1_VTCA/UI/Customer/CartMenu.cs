@@ -28,7 +28,6 @@ namespace Project1_VTCA.UI.Customer
             public int TotalPages { get; set; } = 1;
         }
 
-        // Cập nhật constructor
         public CartMenu(
              ICartService cartService,
              ISessionService sessionService,
@@ -112,7 +111,7 @@ namespace Project1_VTCA.UI.Customer
                 case "1": await HandleUpdateCartAsync(allItems); break;
                 case "2": await HandleRemoveItemAsync(allItems); break;
                 case "3":
-                    // HIỆN THỰC THANH TOÁN GIỎ HÀNG
+                   
                     await HandleCheckoutCart(allItems);
                     break;
                 case "n":
@@ -128,7 +127,7 @@ namespace Project1_VTCA.UI.Customer
             return true;
         }
 
-        // PHƯƠNG THỨC MỚI: Xử lý thanh toán giỏ hàng
+
         private async Task HandleCheckoutCart(List<CartItem> allItems)
         {
             if (!allItems.Any())
@@ -138,10 +137,10 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            // Đảm bảo _checkoutMenu không null
+     
             if (_checkoutMenu == null)
             {
-                // Lấy _checkoutMenu từ DI nếu chưa có
+    
                 var checkoutMenu = _serviceProvider.GetService<ICheckoutMenu>();
                 if (checkoutMenu == null)
                 {
@@ -149,10 +148,7 @@ namespace Project1_VTCA.UI.Customer
                     Console.ReadKey();
                     return;
                 }
-                // Gán vào field để dùng cho lần sau
-                // Nếu field là readonly, bạn có thể bỏ dòng này
-                // _checkoutMenu = checkoutMenu;
-                // Gọi trực tiếp
+             
                 bool isSuccess = await checkoutMenu.StartCheckoutFlowAsync(allItems);
                 if (isSuccess)
                 {
@@ -163,10 +159,10 @@ namespace Project1_VTCA.UI.Customer
                 return;
             }
 
-            // Gọi luồng thanh toán và nhận kết quả
+ 
             bool isSuccessField = await _checkoutMenu.StartCheckoutFlowAsync(allItems);
 
-            // Chỉ xóa giỏ hàng nếu giao dịch thành công
+     
             if (isSuccessField)
             {
                 await _cartService.ClearCartAsync(_sessionService.CurrentUser.UserID);
@@ -175,7 +171,7 @@ namespace Project1_VTCA.UI.Customer
             }
         }
 
-        // ... (Các phương thức khác của CartMenu giữ nguyên)
+        
         #region Other CartMenu Methods
         private async Task<IRenderable> CreateViewContentAsync(List<CartItem> pagedItems, decimal totalAmount)
         {

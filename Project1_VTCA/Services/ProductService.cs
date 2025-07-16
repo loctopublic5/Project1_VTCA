@@ -130,27 +130,16 @@ namespace Project1_VTCA.Services
 
         #region ADMIN METHODS
 
-        //private async Task UpdateTotalQuantityAsync(int productId)
-        //{
-        //    var product = await _context.Products.FindAsync(productId);
-        //    if (product != null)
-        //    {
-        //        var totalStock = await _context.ProductSizes
-        //            .Where(ps => ps.ProductID == productId)
-        //            .SumAsync(ps => ps.QuantityInStock ?? 0);
-        //        product.TotalQuantity = totalStock;
-        //    }
-        //}
-
+      
 
 
         public List<int> GetValidSizesForGender(string gender)
         {
             return gender switch
             {
-                "Male" => Enumerable.Range(40, 6).ToList(),    // 40-45
-                "Female" => Enumerable.Range(35, 5).ToList(),  // 35-39
-                "Unisex" => Enumerable.Range(35, 10).ToList(), // 36-45
+                "Male" => Enumerable.Range(40, 6).ToList(),    
+                "Female" => Enumerable.Range(35, 5).ToList(),  
+                "Unisex" => Enumerable.Range(35, 10).ToList(), 
                 _ => new List<int>()
             };
         }
@@ -159,7 +148,7 @@ namespace Project1_VTCA.Services
             return await _context.Products
                 .Include(p => p.ProductCategories).ThenInclude(pc => pc.Category)
                 .Include(p => p.ProductSizes)
-                // KHÔNG có điều kiện Where(p => p.IsActive)
+     
                 .FirstOrDefaultAsync(p => p.ProductID == productId);
         }
         public async Task<Product?> AddNewProductAsync(Product newProduct, List<int> categoryIds)
@@ -170,21 +159,38 @@ namespace Project1_VTCA.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                   
                     _context.Products.Add(newProduct);
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(); 
 
+                   
                     foreach (var categoryId in categoryIds)
                     {
-                        var productCategory = new ProductCategory { ProductID = newProduct.ProductID, CategoryID = categoryId };
+                        var productCategory = new ProductCategory
+                        {
+                            ProductID = newProduct.ProductID,
+                            CategoryID = categoryId
+                        };
                         _context.ProductCategories.Add(productCategory);
                     }
                     await _context.SaveChangesAsync();
 
-                    // Chỉ tạo các bản ghi size hợp lệ với giới tính đã chọn
-                    var validSizes = GetValidSizesForGender(newProduct.GenderApplicability);
-                    foreach (var size in validSizes)
+                    
+                    var availableSizes = new List<int>();
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Male")
+                        availableSizes.AddRange(Enumerable.Range(38, 8)); 
+                    if (newProduct.GenderApplicability == "Unisex" || newProduct.GenderApplicability == "Female")
+                        availableSizes.AddRange(Enumerable.Range(35, 5)); 
+                  
+
+                    foreach (var size in availableSizes.Distinct().OrderBy(s => s))
                     {
-                        var productSize = new ProductSize { ProductID = newProduct.ProductID, Size = size, QuantityInStock = 0 };
+                        var productSize = new ProductSize
+                        {
+                            ProductID = newProduct.ProductID,
+                            Size = size,
+                            QuantityInStock = 0
+                        };
                         _context.ProductSizes.Add(productSize);
                     }
 
@@ -220,16 +226,18 @@ namespace Project1_VTCA.Services
         public async Task<ServiceResponse> UpdateStockAsync(int productId, List<int> sizeIds, int newQuantity)
         {
             if (newQuantity < 0) return new ServiceResponse(false, "Số lượng mới không thể là số âm.");
+
             var sizesToUpdate = await _context.ProductSizes
                 .Where(ps => ps.ProductID == productId && sizeIds.Contains(ps.Size))
                 .ToListAsync();
+
             if (!sizesToUpdate.Any()) return new ServiceResponse(false, "Không tìm thấy các size được chọn.");
 
             foreach (var size in sizesToUpdate)
             {
                 size.QuantityInStock = newQuantity;
             }
-           
+
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, $"Đã cập nhật tồn kho thành công.");
         }
@@ -243,36 +251,6 @@ namespace Project1_VTCA.Services
             await _context.SaveChangesAsync();
             return new ServiceResponse(true, "Đã gỡ sản phẩm khỏi kệ thành công.");
         }
-
-        //public async Task<ServiceResponse> DecreaseStockForOrderAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
-        //{
-        //    var productSize = await transactionContext.ProductSizes
-        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
-
-        //    if (productSize == null || productSize.QuantityInStock < quantity)
-        //    {
-        //        var productName = (await transactionContext.Products.FindAsync(productId))?.Name ?? "Không rõ";
-        //        return new ServiceResponse(false, $"Không đủ tồn kho cho sản phẩm '{productName}' - Size {size}");
-        //    }
-
-        //    productSize.QuantityInStock -= quantity;
-        //    // Logic cập nhật tổng kho đã được loại bỏ
-
-        //    return new ServiceResponse(true, "Trừ kho thành công trong context.");
-        //}
-
-        //public async Task<ServiceResponse> IncreaseStockFromCancellationAsync(int productId, int size, int quantity, SneakerShopDbContext transactionContext)
-        //{
-        //    var productSize = await transactionContext.ProductSizes
-        //        .FirstOrDefaultAsync(ps => ps.ProductID == productId && ps.Size == size);
-
-        //    if (productSize != null)
-        //    {
-        //        productSize.QuantityInStock += quantity;
-        //    }
-            
-        //    return new ServiceResponse(true, "Hoàn kho thành công trong context.");
-        //}
 
         public async Task<List<Category>> GetCategoriesByTypeAsync(string type)
         {

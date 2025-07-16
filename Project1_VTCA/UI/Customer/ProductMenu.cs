@@ -6,6 +6,7 @@ using Project1_VTCA.UI.Customer.Interfaces;
 using Project1_VTCA.UI.Draw;
 using Project1_VTCA.Utils;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -151,7 +152,7 @@ namespace Project1_VTCA.UI.Customer
                 new CartItem { Product = product, ProductID = product.ProductID, Size = selectedSize.Size, Quantity = quantity, UserID = _sessionService.CurrentUser.UserID }
             };
 
-            // Bắt đầu luồng thanh toán
+           
             await _checkoutMenu.StartCheckoutFlowAsync(itemToCheckout);
         }
 
@@ -190,7 +191,7 @@ namespace Project1_VTCA.UI.Customer
                      {
                          var stock = selectedSize.QuantityInStock ?? 0;
                          if (q <= 0) return ValidationResult.Error("[red]Số lượng phải lớn hơn 0.[/]");
-                         // BỎ GIỚI HẠN 5
+                         
                          if (q > stock) return ValidationResult.Error($"[red]Số lượng vượt quá tồn kho (chỉ còn {stock} sản phẩm).[/]");
                          return ValidationResult.Success();
                      }));
@@ -229,8 +230,9 @@ namespace Project1_VTCA.UI.Customer
             table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
             table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
             table.AddColumn(new TableColumn("[yellow]Danh mục chính[/]"));
+         
             table.AddColumn(new TableColumn("[yellow]Giá Gốc[/]").Alignment(Justify.Right));
-            table.AddColumn(new TableColumn("[yellow]Giá Mới[/]").Alignment(Justify.Right));
+            table.AddColumn(new TableColumn("[yellow]Giá Cuối[/]").Alignment(Justify.Right));
 
             if (!products.Any())
             {
@@ -244,15 +246,32 @@ namespace Project1_VTCA.UI.Customer
                 var displayCategory = _productService.GetDisplayCategory(product);
                 var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
 
+                IRenderable originalPriceCell;
+                IRenderable finalPriceCell;
+
+                if (discountedPrice.HasValue)
+                {
+                    var discountPercentage = (int)Math.Round((double)(1 - discountedPrice.Value / product.Price) * 100);
+                   
+                    originalPriceCell = new Markup($"[strikethrough dim]{product.Price:N0} VNĐ[/] [red]-{discountPercentage}%[/]");
+                    
+                    finalPriceCell = new Markup($"[bold green]{discountedPrice.Value:N0} VNĐ[/]");
+                }
+                else
+                {
+                    
+                    originalPriceCell = new Markup($"[dim]{product.Price:N0} VNĐ[/]");
+                    
+                    finalPriceCell = new Markup($"[bold green]{product.Price:N0} VNĐ[/]");
+                }
+
                 table.AddRow(
                     new Markup(product.ProductID.ToString()),
                     new Markup(Markup.Escape(product.Name)),
                     new Markup(brand),
                     new Markup(Markup.Escape(displayCategory)),
-                    new Markup($"[dim]{product.Price:N0} VNĐ[/]"),
-                    discountedPrice.HasValue
-                        ? new Markup($"[bold green]{discountedPrice.Value:N0} VNĐ[/]")
-                        : new Markup("") // Để trống nếu không có khuyến mãi
+                    originalPriceCell,
+                    finalPriceCell
                 );
             }
             return table;
@@ -496,64 +515,6 @@ namespace Project1_VTCA.UI.Customer
                 default:
                     return (null, null);
             }
-        }
-
-
-
-        private async Task<Table> CreateProductTableAsync(List<Product> products, bool includeMainStyle = false)
-        {
-            var table = new Table().Expand().Border(TableBorder.HeavyHead);
-            table.Title = new TableTitle("DANH SÁCH SẢN PHẨM");
-
-            table.AddColumn(new TableColumn("[yellow]ID[/]") { Alignment = Justify.Center });
-            table.AddColumn(new TableColumn("[yellow]Tên sản phẩm[/]"));
-            table.AddColumn(new TableColumn("[yellow]Thương hiệu[/]"));
-            if (includeMainStyle)
-            {
-                table.AddColumn(new TableColumn("[yellow]Phong cách chính[/]"));
-            }
-            table.AddColumn(new TableColumn("[yellow]Giá[/]") { Alignment = Justify.Right });
-
-            if (!products.Any())
-            {
-                table.AddRow(new Text("Không có sản phẩm nào để hiển thị.", new Style(Color.Red))).Centered();
-                return table;
-            }
-
-            foreach (var product in products)
-            {
-                var (discountedPrice, promoCode) = await _promotionService.CalculateDiscountedPriceAsync(product);
-                string priceDisplay = discountedPrice.HasValue
-                    ? $"[strikethrough dim red]{product.Price:N0}[/] [bold green]{discountedPrice.Value:N0} VNĐ[/]\n[italic dim]Áp dụng: {promoCode}[/]"
-                    : $"[green]{product.Price:N0} VNĐ[/]\n ";
-
-                var brand = product.ProductCategories?.Select(pc => pc.Category).FirstOrDefault(c => c.CategoryType == "Brand")?.Name ?? "N/A";
-
-                if (includeMainStyle)
-                {
-                    var mainStyle = product.ProductCategories?
-                                         .Select(pc => pc.Category)
-                                         .FirstOrDefault(c => c.CategoryType == "Product")?.Name ?? "N/A";
-
-                    table.AddRow(
-                        new Markup(product.ProductID.ToString()),
-                        new Markup(Markup.Escape(product.Name)),
-                        new Markup(brand),
-                        new Markup(mainStyle),
-                        new Markup(priceDisplay)
-                    );
-                }
-                else
-                {
-                    table.AddRow(
-                        new Markup(product.ProductID.ToString()),
-                        new Markup(Markup.Escape(product.Name)),
-                        new Markup(brand),
-                        new Markup(priceDisplay)
-                    );
-                }
-            }
-            return table;
         }
 
 

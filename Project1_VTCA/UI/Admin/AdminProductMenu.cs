@@ -21,7 +21,7 @@ namespace Project1_VTCA.UI.Admin
         private readonly IServiceProvider _serviceProvider;
         private readonly ConsoleLayout _layout;
 
-        // Lớp state chung cho các danh sách có phân trang
+      
         private class ProductListViewState
         {
             public int CurrentPage { get; set; } = 1;
@@ -42,7 +42,7 @@ namespace Project1_VTCA.UI.Admin
             var state = new ProductListViewState();
             while (true)
             {
-                // Mặc định: Hiển thị danh sách sản phẩm đang hoạt động
+               
                 var query = _productService.GetActiveProductsQuery();
                 var (products, totalPages) = await _productService.GetPaginatedProductsAsync(query, state.CurrentPage, state.PageSize, "default");
                 state.TotalPages = totalPages;
@@ -62,7 +62,7 @@ namespace Project1_VTCA.UI.Admin
                 var choice = AnsiConsole.Ask<string>("\n> Nhập lựa chọn:").ToLower();
                 if (await HandleMainMenuCommand(choice, state) == false)
                 {
-                    return; // Thoát khỏi AdminProductMenu
+                    return; 
                 }
             }
         }
@@ -178,7 +178,6 @@ namespace Project1_VTCA.UI.Admin
                     }
                 }
 
-                // TÍCH HỢP: Hiển thị thông tin chi tiết đầy đủ thay vì tóm tắt
                 await ShowAdminProductDetailsAsync(product.ProductID);
                 AnsiConsole.Write(new Rule("[yellow]Thao tác thêm kho[/]").Centered());
 
@@ -220,12 +219,13 @@ namespace Project1_VTCA.UI.Admin
             });
         }
 
-        // TÁI CẤU TRÚC: Sử dụng RenderFormLayout
+        
         private async Task HandleAddNewProductAsync()
         {
             await _layout.RenderFormLayoutAsync("THÊM SẢN PHẨM MỚI", async () =>
             {
-                var brands = await _productService.GetCategoriesByTypeAsync("Brand");
+                var brands = (await _productService.GetCategoriesByTypeAsync("Brand"))
+                                .Where(c => c.ParentID != null).ToList();
                 var styles = (await _productService.GetCategoriesByTypeAsync("Product"))
                                 .Where(c => c.ParentID != null).ToList();
 
@@ -249,7 +249,7 @@ namespace Project1_VTCA.UI.Admin
                         AnsiConsole.MarkupLine($"[green]Đã tạo thành công sản phẩm: {Markup.Escape(createdProduct.Name)} (ID: {createdProduct.ProductID})[/]");
                         if (AnsiConsole.Confirm("[cyan]Bạn có muốn tiếp tục thêm số lượng tồn kho cho sản phẩm này không?[/]"))
                         {
-                            // Gọi lại luồng thêm kho, truyền sản phẩm vừa tạo vào
+                           
                             HandleAddStockAsync(createdProduct).Wait();
                         }
                     }
@@ -401,7 +401,7 @@ namespace Project1_VTCA.UI.Admin
                 .AddRow(new Markup("[bold]Danh mục:[/]"), new Markup(Markup.Escape(_productService.GetDisplayCategory(product))))
                 .AddRow(new Markup("[bold]Giá gốc:[/]"), new Markup($"[yellow]{product.Price:N0} VNĐ[/]"))
                 .AddRow(new Markup("[bold]Giới tính áp dụng:[/]"), new Markup(Markup.Escape(product.GenderApplicability ?? "Không xác định")))
-                .AddRow(new Markup("[bold]Trạng thái:[/]"), product.IsActive ? new Markup("[green]Đang hoạt động[/]") : new Markup("[red]Đã gỡ[/]"));
+                .AddRow(new Markup("[bold]Trạng thái:[/]"), product.IsActive ? new Markup("[green]Available on shelf[/]") : new Markup("[red]Remove from shelf[/]"));
 
             var layoutRows = new Rows(
                 infoGrid,

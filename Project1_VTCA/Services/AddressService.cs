@@ -21,7 +21,7 @@ namespace Project1_VTCA.Services
             var address = await _context.Addresses.FirstOrDefaultAsync(a => a.AddressID == addressId && a.UserID == userId);
             if (address == null) return new ServiceResponse(false, "Không tìm thấy địa chỉ.");
 
-            // NÂNG CẤP: Không cho phép xóa địa chỉ đang là mặc định.
+ 
             if (address.IsDefault)
             {
                 return new ServiceResponse(false, "Lỗi: Không thể xóa địa chỉ mặc định. Vui lòng đặt một địa chỉ khác làm mặc định trước.");

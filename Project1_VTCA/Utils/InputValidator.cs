@@ -22,12 +22,11 @@ namespace Project1_VTCA.Utils
             return hasUpperChar.IsMatch(password) && hasLowerChar.IsMatch(password) && hasNumber.IsMatch(password) && hasSpecialChar.IsMatch(password);
         }
 
-        // CẬP NHẬT REGEX VÀ LOGIC KIỂM TRA EMAIL
+      
         public static bool IsValidEmail(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) return false;
-            // Quy tắc: Chỉ chứa chữ thường, số, dấu chấm '.'
-            // và phải kết thúc bằng @gmail.com
+          
             return Regex.IsMatch(email, @"^[a-z0-9\.]+@gmail\.com$");
         }
 
