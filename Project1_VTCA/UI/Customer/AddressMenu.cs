@@ -46,7 +46,7 @@ namespace Project1_VTCA.UI.Customer
                 }
             }
         }
-        =
+        
         private async Task HandleUpdateAddress(List<Address> addresses)
         {
             if (!addresses.Any())
