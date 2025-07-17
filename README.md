@@ -87,7 +87,7 @@ Configure the database connection: Open the appsettings.json file and update the
 
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=LENOVO;Database=SneakerShopDB;User Id=SneakerShopActor;Password=sneaker2025;TrustServerCertificate=True"
+    "DefaultConnection": "Server=YOURNAME_SERVER;Database=SneakerShopDB;User Id=SneakerShopActor;Password=sneaker2025;TrustServerCertificate=True"
   }
 }
 
@@ -106,7 +106,7 @@ Upon first launch, you can register a new customer account or log in with the de
 
 Admin Username: Admin25
 
-Admin Password: Snss.2025 (As defined in the database seeding migration)
+Admin Password: Snss.2025 
 
 📁 Project Structure
 The project is organized into logical layers to ensure separation of concerns and maintainability:
