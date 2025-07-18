@@ -16,7 +16,7 @@ namespace Project1_VTCA.UI.Admin
         private readonly IOrderService _orderService;
         private readonly ISessionService _sessionService;
         private readonly ConsoleLayout _layout;
-        private const string SELECT_ALL_CHOICE = "[bold yellow](Chọn/Bỏ chọn Tất cả các đơn trong lô này)[/]";
+        private const string SELECT_ALL_CHOICE = "[bold yellow](Chọn tất cả các đơn trong lô này)[/]";
         private const string REASON_OUT_OF_STOCK = "Sản phẩm hiện đang hết hàng";
         private const string REASON_OTHER = "Lý do khác (nhập chi tiết)...";
 
@@ -68,6 +68,11 @@ namespace Project1_VTCA.UI.Admin
                     case "3":
                         await HandleFilterAndViewOrdersAsync();
                         break;
+                    case "4":
+                      
+                        AnsiConsole.MarkupLine("[cyan]Đang làm mới danh sách đơn hàng...[/]");
+                        System.Threading.Thread.Sleep(500); 
+                        break;
                     case "0":
                         return;
                 }
@@ -83,7 +88,8 @@ namespace Project1_VTCA.UI.Admin
                 " 1. Xác nhận Đơn hàng\n" +
                 " 2. Hủy Đơn hàng\n" +
                 "[bold]Tra cứu:[/]\n" +
-                " 3. Lọc và Xem đơn hàng\n\n" +
+                " 3. Lọc và Xem đơn hàng\n" +
+                " 4. Làm mới trang\n\n"+
                 " [red]0. Quay lại[/]"
             );
         }

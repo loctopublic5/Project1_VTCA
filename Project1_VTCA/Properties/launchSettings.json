@@ -1,0 +1,13 @@
+{
+    //"profiles": {
+    //    "Project1_VTCA (Development)": {
+    //        "commandName": "Project",
+    //        "environmentVariables": {
+    //            "DOTNET_ENVIRONMENT": "Development"
+    //        }
+    //    },
+        "Project1_VTCA (Production)": {
+            "commandName": "Project"
+        }
+    }
+}
